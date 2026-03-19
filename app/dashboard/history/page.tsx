@@ -1,0 +1,174 @@
+'use client'
+
+import React, { useState } from 'react'
+import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import Input from '@/components/ui/Input'
+import CallTable from '@/components/CallTable'
+import { mockCalls, Call } from '@/lib/mockData'
+
+export default function HistoryPage() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [scoreFilter, setScoreFilter] = useState({ min: 0, max: 100 })
+  const [filteredCalls, setFilteredCalls] = useState<Call[]>(mockCalls)
+
+  const handleSearch = () => {
+    let results = [...mockCalls]
+
+    // Filter by phone number
+    if (searchQuery) {
+      results = results.filter(call =>
+        call.phone.includes(searchQuery)
+      )
+    }
+
+    // Filter by score
+    if (scoreFilter.min > 0 || scoreFilter.max < 100) {
+      results = results.filter(call =>
+        call.score && call.score >= scoreFilter.min && call.score <= scoreFilter.max
+      )
+    }
+
+    setFilteredCalls(results.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()))
+  }
+
+  const handleExport = () => {
+    const csv = [
+      ['Time', 'Phone', 'Direction', 'Duration', 'Score', 'Status'],
+      ...filteredCalls.map(call => [
+        call.timestamp.toISOString(),
+        call.phone,
+        call.direction,
+        `${Math.floor(call.duration / 60)}m ${call.duration % 60}s`,
+        call.score || 'N/A',
+        call.status,
+      ]),
+    ]
+
+    const csvContent = csv.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'call_history.csv'
+    a.click()
+  }
+
+  return (
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white mb-2">Call History</h1>
+        <p className="text-slate-400">Search and filter your call history</p>
+      </div>
+
+      {/* Filters */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-lg font-bold text-white mb-4">Search & Filter</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <Input
+            label="Phone Number"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Search by phone..."
+          />
+
+          <Input
+            label="Min Score"
+            type="number"
+            min="0"
+            max="100"
+            value={scoreFilter.min}
+            onChange={(e) => setScoreFilter(prev => ({ ...prev, min: parseInt(e.target.value) || 0 }))}
+          />
+
+          <Input
+            label="Max Score"
+            type="number"
+            min="0"
+            max="100"
+            value={scoreFilter.max}
+            onChange={(e) => setScoreFilter(prev => ({ ...prev, max: parseInt(e.target.value) || 100 }))}
+          />
+
+          <div className="flex items-end">
+            <Button
+              variant="primary"
+              size="md"
+              className="w-full"
+              onClick={handleSearch}
+            >
+              Search
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Start Date"
+            type="date"
+            value={dateRange.start}
+            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+          />
+
+          <Input
+            label="End Date"
+            type="date"
+            value={dateRange.end}
+            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+          />
+        </div>
+      </Card>
+
+      {/* Results Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="p-4">
+          <p className="text-slate-400 text-sm">Total Results</p>
+          <p className="text-2xl font-bold text-white mt-1">{filteredCalls.length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-slate-400 text-sm">Hot Leads</p>
+          <p className="text-2xl font-bold text-red-400 mt-1">
+            {filteredCalls.filter(c => c.score && c.score >= 75).length}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-slate-400 text-sm">Avg Score</p>
+          <p className="text-2xl font-bold text-cyan-400 mt-1">
+            {filteredCalls.length > 0
+              ? Math.round(filteredCalls.reduce((sum, c) => sum + (c.score || 0), 0) / filteredCalls.length)
+              : 0}
+            %
+          </p>
+        </Card>
+      </div>
+
+      {/* Call Table */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Results</h2>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExport}
+            disabled={filteredCalls.length === 0}
+          >
+            Export CSV
+          </Button>
+        </div>
+        <CallTable calls={filteredCalls} />
+      </div>
+
+      {/* Pagination info */}
+      {filteredCalls.length > 0 && (
+        <div className="text-center text-slate-400 text-sm">
+          Showing {filteredCalls.length} of {mockCalls.length} calls
+        </div>
+      )}
+    </div>
+  )
+}
