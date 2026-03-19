@@ -227,30 +227,39 @@ export class CTMClient {
   async getCalls(params: GetCallsParams = {}): Promise<Call[]> {
     const { limit = 100, hours = 24, status, sourceId, agentId } = params
     
-    let endpoint = `/accounts/${this.accountId}/calls.json?limit=${limit}&hours=${hours}`
-    if (status) endpoint += `&status=${status}`
-    if (sourceId) endpoint += `&source_id=${sourceId}`
-    if (agentId) endpoint += `&agent_id=${agentId}`
-
-    const data = await this.makeRequest<{ calls?: CTMCall[] }>(endpoint)
+    const callsPerRequest = 10
+    const pagesNeeded = Math.ceil(limit / callsPerRequest)
     
-    if (!data.calls) return []
-
-    let calls = data.calls.map((call: CTMCall) => this.transformCall(call))
+    let allCalls: Call[] = []
     
-    if (agentId) {
-      calls = calls.filter(c => c.agent?.id === agentId)
+    for (let page = 1; page <= pagesNeeded && allCalls.length < limit; page++) {
+      let endpoint = `/accounts/${this.accountId}/calls.json?limit=${callsPerRequest}&hours=${hours}&page=${page}`
+      if (status) endpoint += `&status=${status}`
+      if (sourceId) endpoint += `&source_id=${sourceId}`
+      if (agentId) endpoint += `&agent_id=${agentId}`
+
+      const data = await this.makeRequest<{ calls?: CTMCall[] }>(endpoint)
+      
+      if (!data.calls || data.calls.length === 0) break
+
+      const transformedCalls = data.calls.map((call: CTMCall) => this.transformCall(call))
+      
+      if (agentId) {
+        allCalls.push(...transformedCalls.filter(c => c.agent?.id === agentId))
+      } else {
+        allCalls.push(...transformedCalls)
+      }
     }
 
-    return calls
+    return allCalls.slice(0, limit)
   }
 
   async getCall(callId: string): Promise<Call | null> {
     try {
-      const data = await this.makeRequest<{ call?: CTMCall }>(
-        `/accounts/${this.accountId}/calls/${callId}`
+      const data = await this.makeRequest<CTMCall>(
+        `/accounts/${this.accountId}/calls/${callId}.json`
       )
-      return data.call ? this.transformCall(data.call) : null
+      return data ? this.transformCall(data) : null
     } catch {
       return null
     }
@@ -268,7 +277,7 @@ export class CTMClient {
   }
 
   async getActiveCalls(): Promise<Call[]> {
-    return this.getCalls({ status: 'active' })
+    return this.getCalls({ status: 'in progress' })
   }
 
   async getNumbers(): Promise<{ numbers?: CTMNumber[] }> {
@@ -466,6 +475,9 @@ export class CTMClient {
   }
 
   private transformCall(ctmCall: CTMCall): Call {
+    const sale = (ctmCall as unknown as Record<string, unknown>).sale as { score?: number; name?: string } | undefined
+    const activityAnalysis = (ctmCall as unknown as Record<string, unknown>).activity_analysis as Record<string, string> | undefined
+
     return {
       id: String(ctmCall.id),
       phone: ctmCall.phone_number || ctmCall.caller_number || ctmCall.caller_id || ctmCall.did_number || '',
@@ -489,6 +501,13 @@ export class CTMClient {
       talkTime: ctmCall.talk_time,
       waitTime: ctmCall.wait_time,
       ringTime: ctmCall.ring_time,
+      score: sale?.score,
+      analysis: activityAnalysis ? {
+        sentiment: sale?.score && sale.score >= 75 ? 'positive' : sale?.score && sale.score >= 50 ? 'neutral' : 'negative',
+        summary: activityAnalysis.general || activityAnalysis.sales || '',
+        tags: ctmCall.tag_list || [],
+        disposition: sale?.name || '',
+      } : undefined,
     }
   }
 
@@ -498,6 +517,7 @@ export class CTMClient {
       'completed': 'completed',
       'missed': 'missed',
       'active': 'active',
+      'in progress': 'active',
       'voicemail': 'completed',
     }
     return statusMap[ctmStatus.toLowerCase()] || 'completed'

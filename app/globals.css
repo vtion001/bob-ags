@@ -11,6 +11,11 @@
   --navy-700: #1A2E47;
   --navy-600: #2A4A6B;
   --navy-500: #3D5A80;
+  --navy-400: #4A6B8A;
+  --navy-300: #5A7A99;
+  --navy-200: #7A94AD;
+  --navy-100: #9AABBD;
+  --navy-50: #C5D1DE;
   
   --white: #FFFFFF;
   --white-100: #F8FAFC;
@@ -44,6 +49,17 @@
 
 @theme inline {
   --font-sans: 'Inter', system-ui, sans-serif;
+  --color-navy-50: var(--navy-50);
+  --color-navy-100: var(--navy-100);
+  --color-navy-200: var(--navy-200);
+  --color-navy-300: var(--navy-300);
+  --color-navy-400: var(--navy-400);
+  --color-navy-500: var(--navy-500);
+  --color-navy-600: var(--navy-600);
+  --color-navy-700: var(--navy-700);
+  --color-navy-800: var(--navy-800);
+  --color-navy-900: var(--navy-900);
+  --color-navy-950: var(--navy-950);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

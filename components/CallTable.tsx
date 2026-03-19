@@ -18,6 +18,7 @@ function formatTime(date: Date | string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
+  if (minutes < 1) return 'Just now'
   if (minutes < 60) return `${minutes}m ago`
   if (hours < 24) return `${hours}h ago`
   return `${days}d ago`
@@ -29,25 +30,55 @@ function formatDuration(seconds: number) {
   return `${mins}m ${secs}s`
 }
 
-function getScoreBadgeColor(score?: number) {
-  if (!score) return 'bg-slate-500/20 text-slate-400'
-  if (score >= 75) return 'bg-red-500/20 text-red-400'
-  if (score >= 50) return 'bg-amber-500/20 text-amber-400'
-  return 'bg-slate-500/20 text-slate-400'
+function getScoreBadge(score?: number) {
+  if (!score) return { label: 'Pending', className: 'bg-slate-100 text-slate-600' }
+  if (score >= 75) return { label: 'Hot', className: 'bg-navy-900 text-white' }
+  if (score >= 50) return { label: 'Warm', className: 'bg-amber-100 text-amber-800' }
+  return { label: 'Cold', className: 'bg-slate-100 text-slate-600' }
 }
 
-function getScoreLabel(score?: number) {
-  if (!score) return 'Pending'
-  if (score >= 75) return 'Hot'
-  if (score >= 50) return 'Warm'
-  return 'Cold'
+function StatusIcon({ status }: { status: string }) {
+  if (status === 'completed') {
+    return (
+      <span className="flex items-center gap-1.5 text-emerald-600">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+        Done
+      </span>
+    )
+  }
+  if (status === 'missed') {
+    return (
+      <span className="flex items-center gap-1.5 text-rose-600">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Missed
+      </span>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-amber-600">
+      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Active
+    </span>
+  )
 }
 
 export default function CallTable({ calls, onCallClick }: CallTableProps) {
   if (calls.length === 0) {
     return (
       <Card className="text-center py-12">
-        <p className="text-slate-400">No calls yet</p>
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-navy-100 mb-3">
+          <svg className="w-6 h-6 text-navy-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+        </div>
+        <p className="text-navy-600 font-medium">No calls yet</p>
+        <p className="text-navy-400 text-sm mt-1">Calls will appear here once detected</p>
       </Card>
     )
   }
@@ -55,55 +86,69 @@ export default function CallTable({ calls, onCallClick }: CallTableProps) {
   return (
     <Card hoverable={false} className="overflow-x-auto p-0">
       <table className="w-full">
-        <thead className="bg-navy-100 border-b border-navy-200">
+        <thead className="bg-navy-50 border-b border-navy-200">
           <tr>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Time</th>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Phone</th>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Type</th>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Duration</th>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Score</th>
-            <th className="text-left px-6 py-3 text-sm font-semibold text-navy-600">Status</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Time</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Phone</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Direction</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Duration</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Score</th>
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-500 uppercase tracking-wider">Status</th>
           </tr>
         </thead>
-        <tbody>
-          {calls.map((call, index) => (
-            <tr
-              key={call.id}
-              className={`border-b border-navy-200 transition-colors duration-200 hover:bg-navy-50 cursor-pointer ${
-                index % 2 === 0 ? 'bg-white' : 'bg-navy-50'
-              }`}
-              onClick={() => onCallClick?.(call.id)}
-            >
-              <td className="px-6 py-4 text-sm text-navy-900">
-                <Link href={`/dashboard/calls/${call.id}`}>
-                  {formatTime(call.timestamp)}
-                </Link>
-              </td>
-              <td className="px-6 py-4 text-sm text-navy-900 font-medium">
-                <Link href={`/dashboard/calls/${call.id}`}>
-                  {call.phone}
-                </Link>
-              </td>
-              <td className="px-6 py-4 text-sm text-navy-600">
-                <span className="capitalize">
-                  {call.direction === 'inbound' ? '📞 Inbound' : '📤 Outbound'}
-                </span>
-              </td>
-              <td className="px-6 py-4 text-sm text-navy-900">
-                {formatDuration(call.duration)}
-              </td>
-              <td className="px-6 py-4 text-sm">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getScoreBadgeColor(call.score)}`}>
-                  {call.score ? `${Math.round(call.score)}%` : 'Pending'}
-                </span>
-              </td>
-              <td className="px-6 py-4 text-sm">
-                <span className="capitalize text-navy-600">
-                  {call.status === 'completed' ? '✓ Done' : call.status === 'missed' ? '✕ Missed' : '⏱ Active'}
-                </span>
-              </td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-navy-100">
+          {calls.map((call, index) => {
+            const badge = getScoreBadge(call.score)
+            return (
+              <tr
+                key={`${call.id}-${index}`}
+                className={`transition-colors duration-150 hover:bg-navy-50 cursor-pointer ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                }`}
+                onClick={() => onCallClick?.(call.id)}
+              >
+                <td className="px-5 py-4">
+                  <Link href={`/dashboard/calls/${call.id}`} className="text-sm text-navy-700 hover:text-navy-900">
+                    {formatTime(call.timestamp)}
+                  </Link>
+                </td>
+                <td className="px-5 py-4">
+                  <Link href={`/dashboard/calls/${call.id}`} className="text-sm font-semibold text-navy-900 hover:text-navy-700">
+                    {call.phone}
+                  </Link>
+                </td>
+                <td className="px-5 py-4">
+                  <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
+                    call.direction === 'inbound' ? 'text-emerald-600' : 'text-blue-600'
+                  }`}>
+                    {call.direction === 'inbound' ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    )}
+                    {call.direction === 'inbound' ? 'Inbound' : 'Outbound'}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className="text-sm text-navy-700 font-medium">
+                    {formatDuration(call.duration)}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${badge.className}`}>
+                    {call.score ? `${Math.round(call.score)}%` : badge.label}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <StatusIcon status={call.status} />
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </Card>
