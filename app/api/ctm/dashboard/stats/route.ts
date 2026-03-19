@@ -15,7 +15,20 @@ export async function GET(request: NextRequest) {
 
     const ctmClient = new CTMClient()
     const calls = await ctmClient.getCalls({ limit, hours })
-    const stats = ctmClient.getStats(calls)
+
+    const totalCalls = calls.length
+    const analyzed = calls.filter(c => c.score !== undefined || c.analysis).length
+    const hotLeads = calls.filter(c => (c.score ?? 0) >= 80).length
+    const avgScore = totalCalls > 0
+      ? Math.round(calls.reduce((sum, c) => sum + (c.score ?? 0), 0) / totalCalls)
+      : 0
+
+    const stats = {
+      totalCalls,
+      analyzed,
+      hotLeads,
+      avgScore: avgScore.toString(),
+    }
 
     return NextResponse.json({
       stats,

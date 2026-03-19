@@ -13,6 +13,7 @@ export default function CallDetailPage() {
   const callId = params.id as string
   const [call, setCall] = useState<Call | null>(null)
   const [transcript, setTranscript] = useState<string>('')
+  const [transcriptError, setTranscriptError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +28,11 @@ export default function CallDetailPage() {
         const transcriptRes = await fetch(`/api/ctm/calls/${callId}/transcript`)
         if (transcriptRes.ok) {
           const transcriptData = await transcriptRes.json()
-          setTranscript(transcriptData.transcript || '')
+          if (transcriptData.transcript) {
+            setTranscript(transcriptData.transcript)
+          } else if (transcriptData.error) {
+            setTranscriptError(transcriptData.error)
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
@@ -85,23 +90,23 @@ export default function CallDetailPage() {
           </Card>
 
           <Card className="mt-6 p-6">
-            <h3 className="text-sm font-semibold text-slate-400 mb-4">Caller Info</h3>
+            <h3 className="text-sm font-semibold text-navy-500 mb-4">Caller Info</h3>
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-slate-500 uppercase">Phone</p>
-                <p className="text-white font-mono mt-1">{call.phone}</p>
+                <p className="text-xs text-navy-400 uppercase">Phone</p>
+                <p className="text-navy-900 font-mono mt-1">{call.phone}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase">Duration</p>
-                <p className="text-white mt-1">{formatDuration(call.duration)}</p>
+                <p className="text-xs text-navy-400 uppercase">Duration</p>
+                <p className="text-navy-900 mt-1">{formatDuration(call.duration)}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase">Direction</p>
-                <p className="text-white capitalize mt-1">{call.direction}</p>
+                <p className="text-xs text-navy-400 uppercase">Direction</p>
+                <p className="text-navy-900 capitalize mt-1">{call.direction}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase">Status</p>
-                <p className="text-cyan-400 capitalize mt-1">{call.status}</p>
+                <p className="text-xs text-navy-400 uppercase">Status</p>
+                <p className="text-emerald-600 capitalize mt-1">{call.status}</p>
               </div>
             </div>
           </Card>
@@ -121,30 +126,30 @@ export default function CallDetailPage() {
           {/* Analysis */}
           {call.analysis && (
             <Card className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">AI Analysis</h3>
+              <h3 className="text-lg font-bold text-navy-900 mb-4">AI Analysis</h3>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-slate-400 mb-2">Sentiment</p>
+                  <p className="text-sm text-navy-500 mb-2">Sentiment</p>
                   <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                    call.analysis.sentiment === 'positive' ? 'bg-green-500/20 text-green-400' :
-                    call.analysis.sentiment === 'negative' ? 'bg-red-500/20 text-red-400' :
-                    'bg-slate-500/20 text-slate-400'
+                    call.analysis.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                    call.analysis.sentiment === 'negative' ? 'bg-red-100 text-red-700' :
+                    'bg-slate-100 text-slate-600'
                   }`}>
                     {call.analysis.sentiment}
                   </span>
                 </div>
 
                 <div>
-                  <p className="text-sm text-slate-400 mb-2">Summary</p>
-                  <p className="text-white">{call.analysis.summary}</p>
+                  <p className="text-sm text-navy-500 mb-2">Summary</p>
+                  <p className="text-navy-800">{call.analysis.summary}</p>
                 </div>
 
                 <div>
-                  <p className="text-sm text-slate-400 mb-2">Tags</p>
+                  <p className="text-sm text-navy-500 mb-2">Tags</p>
                   <div className="flex flex-wrap gap-2">
                     {call.analysis.tags.map((tag: string) => (
-                      <span key={tag} className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full">
+                      <span key={tag} className="px-3 py-1 bg-navy-100 text-navy-700 text-xs rounded-full">
                         {tag}
                       </span>
                     ))}
@@ -152,8 +157,8 @@ export default function CallDetailPage() {
                 </div>
 
                 <div>
-                  <p className="text-sm text-slate-400 mb-2">Suggested Disposition</p>
-                  <p className="text-white bg-navy-900/50 rounded-lg p-3">{call.analysis.disposition}</p>
+                  <p className="text-sm text-navy-500 mb-2">Suggested Disposition</p>
+                  <p className="text-navy-800 bg-navy-50 rounded-lg p-3">{call.analysis.disposition}</p>
                 </div>
               </div>
             </Card>
@@ -162,11 +167,11 @@ export default function CallDetailPage() {
           {/* Audio Player */}
           {call.recordingUrl && (
             <Card className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Recording</h3>
+              <h3 className="text-lg font-bold text-navy-900 mb-4">Recording</h3>
               <audio 
                 controls 
-                className="w-full h-12 bg-navy-900 rounded-lg"
-                src={call.recordingUrl}
+                className="w-full h-12"
+                src={`/api/ctm/calls/${call.id}/audio`}
               >
                 Your browser does not support audio playback.
               </audio>
@@ -175,14 +180,18 @@ export default function CallDetailPage() {
 
           {/* Transcript */}
           <Card className="p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Transcript</h3>
+            <h3 className="text-lg font-bold text-navy-900 mb-4">Transcript</h3>
             {transcript ? (
-              <div className="bg-navy-900/50 rounded-lg p-4 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="bg-navy-50 rounded-lg p-4 text-navy-700 text-sm leading-relaxed whitespace-pre-wrap">
                 {transcript}
               </div>
+            ) : transcriptError ? (
+              <div className="bg-amber-50 rounded-lg p-4 text-amber-700 text-sm">
+                {transcriptError}
+              </div>
             ) : (
-              <div className="bg-navy-900/50 rounded-lg p-4 text-slate-500 text-sm">
-                No transcript available. {call.recordingUrl && 'Enable transcription in settings.'}
+              <div className="bg-navy-50 rounded-lg p-4 text-navy-400 text-sm">
+                No transcript available.
               </div>
             )}
           </Card>

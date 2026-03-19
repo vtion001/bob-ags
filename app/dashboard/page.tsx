@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
 import StatsCard from '@/components/StatsCard'
 import CallTable from '@/components/CallTable'
 import { Call } from '@/lib/ctm'
@@ -16,6 +15,9 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzeProgress, setAnalyzeProgress] = useState<string>('')
+  const [autoRefresh, setAutoRefresh] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
     totalCalls: 0,
     analyzed: 0,
@@ -30,8 +32,18 @@ export default function DashboardPage() {
       const res = await fetch('/api/ctm/dashboard/stats?limit=100&hours=168')
       if (!res.ok) throw new Error('Failed to fetch data')
       const data = await res.json()
-      setStats(data.stats)
-      setRecentCalls(data.recentCalls || [])
+      
+      const inboundCalls = (data.recentCalls || []).filter(
+        (call: Call) => call.direction === 'inbound'
+      )
+      
+      const inboundTotal = (data.stats.totalCalls || 0)
+      
+      setStats({
+        ...data.stats,
+        totalCalls: inboundTotal,
+      })
+      setRecentCalls(inboundCalls)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -42,50 +54,89 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    if (!autoRefresh) return
+    
+    const interval = setInterval(() => {
+      fetchData()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [autoRefresh])
+
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await fetchData()
     setIsRefreshing(false)
   }
 
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh)
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-navy-900 mb-2">Dashboard</h1>
           <p className="text-navy-500">Monitor and analyze your calls in real-time</p>
-        </div>
-        <div className="flex gap-2">
+        </div>0
+        <div className="flex gap-3">
           <Button
             variant="secondary"
             size="md"
             onClick={handleRefresh}
             isLoading={isRefreshing}
           >
-            Refresh Data
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
           </Button>
-          <Button variant="primary" size="md">
+          <Button 
+            variant="primary" 
+            size="md"
+            onClick={handleAnalyze}
+            isLoading={isAnalyzing}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
             Run Analysis
           </Button>
         </div>
       </div>
 
-      {error && (
-        <Card className="p-4 mb-6 bg-red-50 border border-red-200">
-          <p className="text-red-600">{error}</p>
-          <p className="text-navy-500 text-sm mt-1">Please check your CTM credentials in .env</p>
-        </Card>
+      {analyzeProgress && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-blue-600 font-medium">{analyzeProgress}</p>
+          </div>
+        </div>
       )}
 
-      {/* Stats Grid */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-red-600 font-medium">{error}</p>
+              <p className="text-navy-500 text-sm mt-1">Please check your CTM credentials in .env</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           label="Total Calls"
           value={stats.totalCalls}
           icon={
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773c.021.061.04.123.057.187l1.068 5.339a1 1 0 01-.93 1.296h-1.924a1 1 0 01-.997-.92L4.3 6.513c-.026-.146-.053-.291-.082-.434A1 1 0 013.153 5H3a1 1 0 01-1-1V3z" />
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
           }
           trend={{ value: 12, direction: 'up' }}
@@ -113,18 +164,17 @@ export default function DashboardPage() {
           label="Avg Score"
           value={`${stats.avgScore}%`}
           icon={
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           }
         />
       </div>
 
-      {/* Recent Calls */}
       <div>
-        <div className="mb-4">
+        <div className="mb-5">
           <h2 className="text-xl font-bold text-navy-900">Recent Calls</h2>
-          <p className="text-navy-500 text-sm mt-1">Your latest 10 calls with analysis</p>
+          <p className="text-navy-500 text-sm mt-1">Latest 10 calls with analysis</p>
         </div>
         <CallTable calls={recentCalls} />
       </div>

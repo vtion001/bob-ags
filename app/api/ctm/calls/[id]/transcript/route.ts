@@ -21,12 +21,20 @@ export async function GET(
     }
 
     if (!call.recordingUrl) {
-      return NextResponse.json({ error: 'No recording available for this call' }, { status: 404 })
+      return NextResponse.json({ 
+        transcript: null, 
+        error: 'No recording available for this call',
+        callId: id 
+      })
     }
 
     const openrouterKey = process.env.OPENROUTER_API_KEY
-    if (!openrouterKey) {
-      return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 })
+    if (!openrouterKey || openrouterKey === 'your-openrouter-api-key-here') {
+      return NextResponse.json({ 
+        transcript: null, 
+        error: 'Transcription not configured',
+        callId: id 
+      })
     }
 
     const audioResponse = await fetch(call.recordingUrl, {

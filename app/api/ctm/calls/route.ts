@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
     const ctmClient = new CTMClient()
     const calls = await ctmClient.getCalls({ limit, hours, status, sourceId, agentId })
 
-    return NextResponse.json({ calls })
+    const inboundCalls = calls.filter(call => call.direction === 'inbound')
+
+    return NextResponse.json({ calls: inboundCalls })
   } catch (error) {
     console.error('CTM calls error:', error)
     return NextResponse.json(

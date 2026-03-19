@@ -14,6 +14,8 @@ export default function SettingsPage() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [lightMode, setLightMode] = useState(true)
+  const [emailNotifications, setEmailNotifications] = useState(false)
 
   const handleChange = (field: string, value: string) => {
     setCredentials(prev => ({
@@ -25,7 +27,6 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
       setSaveMessage('Settings saved successfully')
       setTimeout(() => setSaveMessage(''), 3000)
@@ -38,15 +39,13 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-navy-900 mb-2">Settings</h1>
         <p className="text-navy-500">Manage your integrations and preferences</p>
       </div>
 
-      {/* API Credentials Section */}
       <Card className="p-6 mb-6">
-        <h2 className="text-xl font-bold text-navy-900 mb-6">CTM Integrations</h2>
+        <h2 className="text-lg font-bold text-navy-900 mb-6">CTM Integrations</h2>
         
         <div className="space-y-4 mb-6">
           <Input
@@ -90,9 +89,8 @@ export default function SettingsPage() {
         </Button>
       </Card>
 
-      {/* AI Configuration Section */}
       <Card className="p-6 mb-6">
-        <h2 className="text-xl font-bold text-navy-900 mb-6">AI Analysis</h2>
+        <h2 className="text-lg font-bold text-navy-900 mb-6">AI Analysis</h2>
         
         <div className="space-y-4 mb-6">
           <Input
@@ -110,36 +108,56 @@ export default function SettingsPage() {
         </Button>
       </Card>
 
-      {/* Preferences Section */}
       <Card className="p-6 mb-6">
-        <h2 className="text-xl font-bold text-navy-900 mb-6">Preferences</h2>
+        <h2 className="text-lg font-bold text-navy-900 mb-6">Preferences</h2>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-navy-50">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-navy-50">
             <div>
               <p className="text-navy-900 font-medium">Light Mode</p>
               <p className="text-sm text-navy-500">Clean white interface</p>
             </div>
-            <div className="w-14 h-8 bg-navy-900 rounded-full flex items-center justify-end pr-1">
-              <div className="w-6 h-6 bg-white rounded-full"></div>
-            </div>
+            <button
+              onClick={() => setLightMode(!lightMode)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                lightMode ? 'bg-navy-900' : 'bg-navy-200'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-transform flex items-center justify-center ${
+                  lightMode ? 'translate-x-7.5' : 'translate-x-0.5'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${lightMode ? 'bg-navy-900' : 'bg-navy-400'}`} />
+              </span>
+            </button>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-lg bg-navy-50">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-navy-50">
             <div>
               <p className="text-navy-900 font-medium">Email Notifications</p>
               <p className="text-sm text-navy-500">Receive notifications for hot leads</p>
             </div>
-            <div className="w-14 h-8 bg-navy-200 rounded-full flex items-center justify-start pl-1">
-              <div className="w-6 h-6 bg-navy-400 rounded-full"></div>
-            </div>
+            <button
+              onClick={() => setEmailNotifications(!emailNotifications)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                emailNotifications ? 'bg-navy-900' : 'bg-navy-200'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-transform flex items-center justify-center ${
+                  emailNotifications ? 'translate-x-7.5' : 'translate-x-0.5'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${emailNotifications ? 'bg-navy-900' : 'bg-navy-400'}`} />
+              </span>
+            </button>
           </div>
         </div>
       </Card>
 
-      {/* Danger Zone */}
-      <Card className="p-6 border-red-200 bg-red-50">
-        <h2 className="text-xl font-bold text-red-600 mb-4">Danger Zone</h2>
+      <Card className="p-6 border-red-200">
+        <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>
         <p className="text-navy-600 mb-4">
           Clear all stored credentials. This action cannot be undone.
         </p>
@@ -152,9 +170,8 @@ export default function SettingsPage() {
         </Button>
       </Card>
 
-      {/* Save Message */}
       {saveMessage && (
-        <div className="fixed bottom-4 right-4 bg-navy-100 border border-navy-300 text-navy-900 px-4 py-3 rounded-lg">
+        <div className="fixed bottom-6 right-6 z-50 bg-navy-900 text-white px-4 py-3 rounded-lg shadow-lg">
           {saveMessage}
         </div>
       )}
