@@ -209,9 +209,7 @@ export class AssemblyAIRealtime {
   }
 
   async connect(callId?: string): Promise<void> {
-    console.log("[AAI] connect() called, callId:", callId);
     try {
-      console.log("[AAI] Requesting microphone access...");
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -219,19 +217,26 @@ export class AssemblyAIRealtime {
           sampleRate: 48000,
         },
       });
-      console.log("[AAI] Microphone access granted");
+    } catch (err) {
+      const domErr = err as DOMException;
+      if (domErr.name === "NotAllowedError" || domErr.name === "PermissionDeniedError") {
+        this.onError(new Error("Microphone access denied. Please allow microphone access in your browser settings and try again."));
+        return;
+      }
+      if (domErr.name === "NotFoundError") {
+        this.onError(new Error("No microphone found. Please connect a microphone and try again."));
+        return;
+      }
+      this.onError(new Error(`Microphone error: ${domErr.message || "Unknown error"}`));
+      return;
+    }
 
+    try {
       this.audioContext = new AudioContext({ sampleRate: 48000 });
-      this.microphone = this.audioContext.createMediaStreamSource(
-        this.mediaStream,
-      );
+      this.microphone = this.audioContext.createMediaStreamSource(this.mediaStream);
 
       const bufferSize = 4096;
-      this.processor = this.audioContext.createScriptProcessor(
-        bufferSize,
-        1,
-        1,
-      );
+      this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
@@ -246,88 +251,46 @@ export class AssemblyAIRealtime {
       this.processor.connect(this.audioContext.destination);
 
       const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=${this.sampleRate}&speech_model=u3-rt-pro&token=${this.apiKey}`;
-      console.log("[AAI] Connecting to WebSocket:", wsUrl);
       this.ws = new WebSocket(wsUrl);
       this.ws.binaryType = "arraybuffer";
 
       this.ws.onopen = () => {
-        console.log("[AAI] WebSocket OPEN");
         this.startTime = Date.now();
         this.reconnectAttempts = 0;
         this.sessionBegun = false;
-        this.onStateChange({
-          isConnected: true,
-          isRecording: true,
-          duration: 0,
-        });
-        if (callId) {
-          this.onStateChange({ callerPhone: callId });
-        }
+        this.onStateChange({ isConnected: true, isRecording: true, duration: 0 });
+        if (callId) this.onStateChange({ callerPhone: callId });
         this.flushBufferQueue();
       };
 
       this.ws.onmessage = (event) => {
-        console.log(
-          "[AAI] WebSocket message:",
-          typeof event.data === "string" ? event.data : `binary(${event.data})`,
-        );
         try {
-          let data: AAIRealtimeMessage;
-          if (typeof event.data === "string") {
-            data = JSON.parse(event.data);
-          } else {
-            const text = new TextDecoder().decode(event.data as ArrayBuffer);
-            data = JSON.parse(text);
-          }
+          const data: AAIRealtimeMessage =
+            typeof event.data === "string"
+              ? JSON.parse(event.data)
+              : JSON.parse(new TextDecoder().decode(event.data as ArrayBuffer));
           this.handleMessage(data);
-        } catch (err) {
-          console.warn("[AAI] Failed to parse message:", err);
-        }
+        } catch { /* ignore parse errors */ }
       };
 
-      this.ws.onerror = (err) => {
-        console.error("[AAI] WebSocket ERROR:", err);
-        if (
-          !this.isManualStop &&
-          !this.isReconnecting &&
-          this.reconnectAttempts < this.maxReconnectAttempts
-        ) {
+      this.ws.onerror = () => {
+        if (!this.isManualStop && !this.isReconnecting && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          console.warn(
-            `[AAI] Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
-          );
           this.isReconnecting = true;
           setTimeout(() => {
             this.isReconnecting = false;
-            if (!this.isManualStop) {
-              this.attemptReconnect(callId);
-            }
+            if (!this.isManualStop) this.attemptReconnect(callId);
           }, 2000 * this.reconnectAttempts);
         } else if (!this.isManualStop) {
-          this.onError(
-            new Error(
-              "AssemblyAI WebSocket connection failed. Check your API key and internet connection.",
-            ),
-          );
+          this.onError(new Error("AssemblyAI WebSocket connection failed. Check your API key and internet connection."));
         }
       };
 
       this.ws.onclose = (event) => {
-        console.log(
-          "[AAI] WebSocket CLOSE, code:",
-          event.code,
-          "reason:",
-          event.reason,
-        );
-        if (!this.isManualStop) {
-          this.onClose();
-        }
+        if (!this.isManualStop) this.onClose();
       };
     } catch (err) {
-      console.error("[AAI] connect() exception:", err);
-      this.onError(
-        err instanceof Error ? err : new Error("Failed to access microphone"),
-      );
+      this.onError(new Error(`Failed to start live analysis: ${err instanceof Error ? err.message : "Unknown error"}`));
     }
   }
 
