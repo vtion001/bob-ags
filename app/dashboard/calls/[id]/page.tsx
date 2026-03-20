@@ -4,7 +4,14 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
-import ScoreCircle from '@/components/ScoreCircle'
+import {
+  CallScoreCard,
+  CallerInfoCard,
+  AIAnalysisCard,
+  TranscriptCard,
+  AudioPlayerCard,
+  ActionButtonsCard,
+} from '@/components/call-detail'
 import { Call } from '@/lib/ctm'
 
 interface AnalysisResult {
@@ -19,6 +26,7 @@ export default function CallDetailPage() {
   const params = useParams()
   const router = useRouter()
   const callId = params.id as string
+
   const [call, setCall] = useState<Call | null>(null)
   const [transcript, setTranscript] = useState<string>('')
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
@@ -28,61 +36,85 @@ export default function CallDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchCallDetails = async () => {
-      try {
-        const res = await fetch(`/api/ctm/calls/${callId}`)
-        if (!res.ok) throw new Error('Call not found')
+  const fetchCallDetails = async () => {
+    try {
+      const res = await fetch(`/api/ctm/calls/${callId}`)
+      if (!res.ok) throw new Error('Call not found')
+      const data = await res.json()
+      return data.call
+    } catch (err) {
+      throw err
+    }
+  }
+
+  const handleTranscribe = async () => {
+    setTranscriptError(null)
+    setIsTranscribing(true)
+    try {
+      const res = await fetch(`/api/ctm/calls/${callId}/transcript`)
+      const data = await res.json()
+      
+      if (data.transcript) {
+        setTranscript(data.transcript)
+        return true
+      } else if (data.error) {
+        setTranscriptError(data.error + (data.details ? `: ${data.details}` : ''))
+        return false
+      }
+      return false
+    } catch (err) {
+      setTranscriptError('Failed to transcribe audio')
+      return false
+    } finally {
+      setIsTranscribing(false)
+    }
+  }
+
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true)
+    try {
+      const res = await fetch('/api/ctm/calls/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callIds: [callId] }),
+      })
+      
+      if (res.ok) {
         const data = await res.json()
-        setCall(data.call)
+        const result = data.results?.[0]
+        if (result?.success && result.analysis) {
+          setAnalysis(result.analysis)
+          return true
+        }
+      }
+      return false
+    } catch (err) {
+      console.error('Analysis failed:', err)
+      return false
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const fetchedCall = await fetchCallDetails()
+        setCall(fetchedCall)
         
-        if (data.call.analysis) {
-          setAnalysis(data.call.analysis)
+        if (fetchedCall.analysis) {
+          setAnalysis(fetchedCall.analysis)
         }
 
-        // Auto-transcribe if recording exists and no transcript
-        if (data.call.recordingUrl && !data.call.transcript) {
+        if (fetchedCall.transcript) {
+          setTranscript(fetchedCall.transcript)
+        } else if (fetchedCall.recordingUrl) {
           setIsTranscribing(true)
-          try {
-            const transcriptRes = await fetch(`/api/ctm/calls/${callId}/transcript`)
-            const transcriptData = await transcriptRes.json()
-            
-            if (transcriptData.transcript) {
-              setTranscript(transcriptData.transcript)
-              
-              // Auto-analyze after transcription
-              if (!data.call.analysis) {
-                setIsAnalyzing(true)
-                try {
-                  const analyzeRes = await fetch('/api/ctm/calls/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ callIds: [callId] }),
-                  })
-                  if (analyzeRes.ok) {
-                    const analyzeData = await analyzeRes.json()
-                    const result = analyzeData.results?.[0]
-                    if (result?.success && result.analysis) {
-                      setAnalysis(result.analysis)
-                    }
-                  }
-                } catch (err) {
-                  console.error('Analysis failed:', err)
-                } finally {
-                  setIsAnalyzing(false)
-                }
-              }
-            } else if (transcriptData.error) {
-              setTranscriptError(transcriptData.error + (transcriptData.details ? `: ${transcriptData.details}` : ''))
-            }
-          } catch (err) {
-            console.error('Transcription failed:', err)
-            setTranscriptError('Failed to transcribe audio')
-          } finally {
-            setIsTranscribing(false)
+          const transcribed = await handleTranscribe()
+          
+          if (transcribed && !fetchedCall.analysis) {
+            await handleAnalyze()
           }
-        } else if (data.call.transcript) {
-          setTranscript(data.call.transcript)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
@@ -90,8 +122,25 @@ export default function CallDetailPage() {
         setIsLoading(false)
       }
     }
-    fetchCallDetails()
+
+    init()
   }, [callId])
+
+  const onTranscribe = async () => {
+    await handleTranscribe()
+  }
+
+  const onCreateTask = () => {
+    console.log('Create task for call:', callId)
+  }
+
+  const onAddToSalesforce = () => {
+    console.log('Add to Salesforce:', callId)
+  }
+
+  const onScheduleFollowUp = () => {
+    console.log('Schedule follow-up for call:', callId)
+  }
 
   if (isLoading) {
     return (
@@ -100,7 +149,10 @@ export default function CallDetailPage() {
           ← Back
         </Button>
         <Card className="text-center py-12">
-          <p className="text-slate-400">Loading...</p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-navy-100 border-t-navy-900 rounded-full animate-spin" />
+            <p className="text-slate-400">Loading call details...</p>
+          </div>
         </Card>
       </div>
     )
@@ -113,57 +165,32 @@ export default function CallDetailPage() {
           ← Back
         </Button>
         <Card className="text-center py-12">
-          <p className="text-slate-400">{error || 'Call not found'}</p>
+          <div className="flex flex-col items-center gap-4">
+            <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-slate-400">{error || 'Call not found'}</p>
+          </div>
         </Card>
       </div>
     )
   }
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}m ${secs}s`
-  }
-
-  const displayScore = analysis?.score || call.score || 0
-
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
-      {/* Header */}
       <Button variant="ghost" onClick={() => router.back()} className="mb-6">
         ← Back
       </Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Score and basic info */}
-        <div className="lg:col-span-1">
-          <Card className="flex flex-col items-center p-8 text-center">
-            <ScoreCircle score={displayScore} size="md" />
-          </Card>
-
-          <Card className="mt-6 p-6">
-            <h3 className="text-sm font-semibold text-navy-500 mb-4">Caller Info</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-navy-400 uppercase">Phone</p>
-                <p className="text-navy-900 font-mono mt-1">{call.phone}</p>
-              </div>
-              <div>
-                <p className="text-xs text-navy-400 uppercase">Duration</p>
-                <p className="text-navy-900 mt-1">{formatDuration(call.duration)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-navy-400 uppercase">Direction</p>
-                <p className="text-navy-900 capitalize mt-1">{call.direction}</p>
-              </div>
-              <div>
-                <p className="text-xs text-navy-400 uppercase">Status</p>
-                <p className="text-emerald-600 capitalize mt-1">{call.status}</p>
-              </div>
-            </div>
-          </Card>
-
-          <div className="flex gap-2 mt-6">
+        {/* Left column */}
+        <div className="lg:col-span-1 space-y-6">
+          <CallScoreCard 
+            score={analysis?.score || call.score || 0}
+            sentiment={analysis?.sentiment}
+          />
+          <CallerInfoCard call={call} />
+          <div className="flex gap-2">
             <Button variant="secondary" size="sm" className="flex-1">
               Export
             </Button>
@@ -173,141 +200,31 @@ export default function CallDetailPage() {
           </div>
         </div>
 
-        {/* Right column - Analysis and transcript */}
+        {/* Right column */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Analysis */}
-          {(analysis || call?.analysis) && (
-            <Card className="p-6">
-              <h3 className="text-lg font-bold text-navy-900 mb-4">
-                AI Analysis {isAnalyzing && <span className="text-navy-400 text-sm font-normal">(Analyzing...)</span>}
-              </h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-navy-500 mb-2">Score</p>
-                  <ScoreCircle score={analysis?.score || call?.score || 0} size="sm" />
-                </div>
-
-                <div>
-                  <p className="text-sm text-navy-500 mb-2">Sentiment</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                    (analysis?.sentiment || call?.analysis?.sentiment) === 'positive' ? 'bg-green-100 text-green-700' :
-                    (analysis?.sentiment || call?.analysis?.sentiment) === 'negative' ? 'bg-red-100 text-red-700' :
-                    'bg-slate-100 text-slate-600'
-                  }`}>
-                    {analysis?.sentiment || call?.analysis?.sentiment || 'unknown'}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-sm text-navy-500 mb-2">Summary</p>
-                  <p className="text-navy-800">{analysis?.summary || call?.analysis?.summary || 'No summary available'}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-navy-500 mb-2">Tags</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(analysis?.tags || call?.analysis?.tags || []).map((tag: string) => (
-                      <span key={tag} className="px-3 py-1 bg-navy-100 text-navy-700 text-xs rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-navy-500 mb-2">Suggested Disposition</p>
-                  <p className="text-navy-800 bg-navy-50 rounded-lg p-3">
-                    {(analysis?.disposition && analysis.disposition !== '-------- dup unq --------') 
-                      ? analysis.disposition 
-                      : call?.analysis?.disposition && call.analysis.disposition !== '-------- dup unq --------'
-                        ? call.analysis.disposition
-                        : 'No disposition available'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Audio Player */}
-          {call.recordingUrl && (
-            <Card className="p-6">
-              <h3 className="text-lg font-bold text-navy-900 mb-4">Recording</h3>
-              <audio 
-                controls 
-                className="w-full h-12"
-                src={`/api/ctm/calls/${call.id}/audio`}
-              >
-                Your browser does not support audio playback.
-              </audio>
-            </Card>
-          )}
-
-          {/* Transcript */}
-          <Card className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-navy-900">Transcript</h3>
-              {!transcript && !transcriptError && call.recordingUrl && (
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={async () => {
-                    setTranscriptError(null)
-                    setIsTranscribing(true)
-                    try {
-                      const res = await fetch(`/api/ctm/calls/${callId}/transcript`)
-                      const data = await res.json()
-                      if (data.transcript) {
-                        setTranscript(data.transcript)
-                      } else if (data.error) {
-                        setTranscriptError(data.error + (data.details ? `: ${data.details}` : ''))
-                      }
-                    } catch (err) {
-                      setTranscriptError('Failed to transcribe')
-                    } finally {
-                      setIsTranscribing(false)
-                    }
-                  }}
-                >
-                  Transcribe
-                </Button>
-              )}
-            </div>
-            {isTranscribing ? (
-              <div className="bg-navy-50 rounded-lg p-4 text-navy-600 text-sm flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Transcribing audio...
-              </div>
-            ) : transcript ? (
-              <div className="bg-navy-50 rounded-lg p-4 text-navy-700 text-sm leading-relaxed whitespace-pre-wrap">
-                {transcript}
-              </div>
-            ) : transcriptError ? (
-              <div className="bg-amber-50 rounded-lg p-4 text-amber-700 text-sm">
-                {transcriptError}
-              </div>
-            ) : (
-              <div className="bg-navy-50 rounded-lg p-4 text-navy-400 text-sm">
-                No transcript available.
-              </div>
-            )}
-          </Card>
-
-          {/* Actions */}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="primary" size="md">
-              Create Task
-            </Button>
-            <Button variant="secondary" size="md">
-              Add to Salesforce
-            </Button>
-            <Button variant="ghost" size="md">
-              Schedule Follow-up
-            </Button>
-          </div>
+          <AIAnalysisCard 
+            analysis={analysis}
+            isAnalyzing={isAnalyzing}
+          />
+          
+          <AudioPlayerCard 
+            audioUrl={call.recordingUrl || ''}
+            callId={call.id}
+          />
+          
+          <TranscriptCard
+            transcript={transcript}
+            transcriptError={transcriptError}
+            isTranscribing={isTranscribing}
+            hasRecording={!!call.recordingUrl}
+            onTranscribe={onTranscribe}
+          />
+          
+          <ActionButtonsCard
+            onCreateTask={onCreateTask}
+            onAddToSalesforce={onAddToSalesforce}
+            onScheduleFollowUp={onScheduleFollowUp}
+          />
         </div>
       </div>
     </div>

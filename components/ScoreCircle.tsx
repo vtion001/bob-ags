@@ -9,12 +9,12 @@ export interface ScoreCircleProps {
 }
 
 export default function ScoreCircle({ score, label = 'Score', size = 'md' }: ScoreCircleProps) {
-  // Determine color based on score
-  // Hot: 75-100 (red), Warm: 50-74 (amber), Cold: 0-49 (slate)
+  const validScore = score && !isNaN(score) ? score : 0
+  
   const getColorStyles = () => {
-    if (score >= 75) {
+    if (validScore >= 75) {
       return 'border-red-500 bg-red-500/10'
-    } else if (score >= 50) {
+    } else if (validScore >= 50) {
       return 'border-amber-500 bg-amber-500/10'
     } else {
       return 'border-slate-500 bg-slate-500/10'
@@ -22,8 +22,8 @@ export default function ScoreCircle({ score, label = 'Score', size = 'md' }: Sco
   }
 
   const getLabel = () => {
-    if (score >= 75) return 'Hot'
-    if (score >= 50) return 'Warm'
+    if (validScore >= 75) return 'Hot'
+    if (validScore >= 50) return 'Warm'
     return 'Cold'
   }
 
@@ -40,7 +40,7 @@ export default function ScoreCircle({ score, label = 'Score', size = 'md' }: Sco
       <div
         className={`${sizeConfig.container} ${sizeConfig.border} ${getColorStyles()} rounded-full flex items-center justify-center`}
       >
-        <span className={`${sizeConfig.text} font-bold text-navy-900`}>{Math.round(score)}</span>
+        <span className={`${sizeConfig.text} font-bold text-navy-900`}>{validScore > 0 ? Math.round(validScore) : '-'}</span>
       </div>
       <div className="text-center">
         <p className="text-sm text-navy-500">{label}</p>

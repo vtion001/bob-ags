@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
+import Select from '@/components/ui/select'
 import CallTable from '@/components/CallTable'
 import { Call } from '@/lib/ctm'
 import { createClient } from '@/lib/supabase/client'
@@ -47,9 +48,11 @@ export default function HistoryPage() {
         setIsLoading(true)
         setError(null)
         
-        let url = '/api/ctm/calls?limit=500&hours=168'
+        // Use /api/calls which reads from Supabase cache
+        // This returns cached data immediately and triggers background sync if needed
+        let url = '/api/calls?limit=500&hours=2160&skipSync=false'
         if (agentIdFilter) {
-          url += `&agent_id=${encodeURIComponent(agentIdFilter)}`
+          url += `&agentId=${encodeURIComponent(agentIdFilter)}`
         }
         
         const res = await fetch(url)
@@ -60,6 +63,7 @@ export default function HistoryPage() {
           throw new Error('Failed to fetch calls')
         }
         const data = await res.json()
+        // Data comes from cache - no need to wait for CTM
         setAllCalls(data.calls || [])
         setFilteredCalls(data.calls || [])
       } catch (err) {
@@ -160,18 +164,19 @@ export default function HistoryPage() {
 
           <div>
             <label className="block text-sm font-medium text-navy-700 mb-2">Agent</label>
-            <select
+            <Select
               value={agentIdFilter}
-              onChange={(e) => setAgentIdFilter(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-navy-200 rounded-lg text-navy-900 transition-all duration-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20 focus:outline-none"
-            >
-              <option value="">All Agents</option>
-              {agentProfiles.map((agent) => (
-                <option key={agent.id} value={agent.agent_id}>
-                  {agent.name} ({agent.agent_id})
-                </option>
-              ))}
-            </select>
+              onChange={setAgentIdFilter}
+              placeholder="All Agents"
+              options={[
+                { value: '', label: 'All Agents' },
+                ...agentProfiles.map((agent) => ({
+                  value: agent.agent_id,
+                  label: `${agent.name} (${agent.agent_id})`,
+                })),
+              ]}
+              className="w-full"
+            />
           </div>
 
           <Input

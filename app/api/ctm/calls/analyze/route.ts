@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
     const ctmClient = new CTMClient()
     const results = []
+    const callsToUpdate = []
 
     for (const callId of callIds) {
       try {
@@ -94,17 +95,31 @@ export async function POST(request: NextRequest) {
 
         const analysis = await analyzeTranscript(transcript, call.phone)
         
+        const analysisResult = {
+          score: analysis.qualification_score,
+          sentiment: analysis.sentiment,
+          summary: analysis.summary,
+          tags: analysis.tags,
+          disposition: analysis.suggested_disposition,
+        }
+
         results.push({
           callId,
           success: true,
           analysis: {
-            score: analysis.qualification_score,
-            sentiment: analysis.sentiment,
-            summary: analysis.summary,
-            tags: analysis.tags,
-            disposition: analysis.suggested_disposition,
+            ...analysisResult,
             followUp: analysis.follow_up_required,
           },
+        })
+
+        // Queue the call for updating in Supabase
+        callsToUpdate.push({
+          ctm_call_id: callId,
+          score: analysisResult.score,
+          sentiment: analysisResult.sentiment,
+          summary: analysisResult.summary,
+          tags: analysisResult.tags,
+          disposition: analysisResult.disposition,
         })
       } catch (err) {
         console.error(`Error analyzing call ${callId}:`, err)
@@ -112,10 +127,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Update all analyzed calls in Supabase
+    if (callsToUpdate.length > 0) {
+      for (const callUpdate of callsToUpdate) {
+        await supabase
+          .from('calls')
+          .update({
+            score: callUpdate.score,
+            sentiment: callUpdate.sentiment,
+            summary: callUpdate.summary,
+            tags: callUpdate.tags,
+            disposition: callUpdate.disposition,
+            synced_at: new Date().toISOString(),
+          })
+          .eq('ctm_call_id', callUpdate.ctm_call_id)
+          .eq('user_id', user.id)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       results,
       analyzed: results.filter(r => r.success).length,
+      updatedInCache: callsToUpdate.length,
     })
   } catch (error) {
     console.error('Bulk analysis error:', error)
