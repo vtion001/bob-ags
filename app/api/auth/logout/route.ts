@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { deleteSession } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
-    await deleteSession()
+    const supabase = await createServerSupabase()
+    await supabase.auth.signOut()
     
     return NextResponse.json({
       success: true,

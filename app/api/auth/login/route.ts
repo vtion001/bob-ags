@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSession, validateCredentials } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,20 +13,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate credentials
-    if (!validateCredentials(email, password)) {
+    const supabase = await createServerSupabase()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: error.message },
         { status: 401 }
       )
     }
 
-    // Create session
-    await createSession(email)
-
     return NextResponse.json({
       success: true,
       message: 'Login successful',
+      user: { email: data.user.email },
     })
   } catch (error) {
     console.error('Login error:', error)

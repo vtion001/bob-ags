@@ -27,13 +27,11 @@ export default function Navbar({ email, onLogout }: NavbarProps) {
     <nav className="bg-white border-b border-navy-200 sticky top-0 z-50 shadow-sm">
       <div className="h-16 flex items-center justify-between px-4 lg:px-6">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-navy-900 rounded-lg">
-            <span className="text-white font-bold text-lg">B</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-navy-900">BOB</h1>
-            <p className="text-xs text-navy-400 -mt-0.5">Call Analysis</p>
-          </div>
+          <img 
+            src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773964807/mlchltgq4cem5dfoogl3.png" 
+            alt="BOB" 
+            className="h-14 w-auto"
+          />
         </div>
 
         <div className="flex items-center gap-4">

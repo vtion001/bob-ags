@@ -1,14 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase/server'
 import { CTMClient } from '@/lib/ctm'
+
+async function transcribeWithAssemblyAI(audioUrl: string, auth: string): Promise<string> {
+  const apiKey = process.env.ASSEMBLYAI_API_KEY
+  if (!apiKey) {
+    throw new Error('AssemblyAI API key not configured')
+  }
+
+  const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+    method: 'POST',
+    headers: {
+      'Authorization': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      audio_url: audioUrl,
+    }),
+  })
+
+  if (!transcriptResponse.ok) {
+    const err = await transcriptResponse.text()
+    throw new Error(`AssemblyAI error: ${err}`)
+  }
+
+  const transcriptJob = await transcriptResponse.json()
+  
+  // Poll for completion
+  let result
+  while (true) {
+    const pollingRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptJob.id}`, {
+      headers: { 'Authorization': apiKey }
+    })
+    result = await pollingRes.json()
+    
+    if (result.status === 'completed') break
+    if (result.status === 'error') {
+      throw new Error(`AssemblyAI transcription failed: ${result.error}`)
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+
+  return result.text || ''
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    if (!session) {
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -17,7 +61,7 @@ export async function GET(
     
     const call = await ctmClient.getCall(id)
     if (!call) {
-      return NextResponse.json({ error: 'Call not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Call not found', callId: id }, { status: 404 })
     }
 
     if (!call.recordingUrl) {
@@ -28,61 +72,50 @@ export async function GET(
       })
     }
 
-    const openrouterKey = process.env.OPENROUTER_API_KEY
-    if (!openrouterKey || openrouterKey === 'your-openrouter-api-key-here') {
+    console.log('Transcribing audio for call:', id)
+    console.log('Audio URL:', call.recordingUrl)
+
+    // Try AssemblyAI first
+    if (process.env.ASSEMBLYAI_API_KEY) {
+      try {
+        const auth = Buffer.from(process.env.CTM_ACCESS_KEY + ':' + process.env.CTM_SECRET_KEY).toString('base64')
+        const transcript = await transcribeWithAssemblyAI(call.recordingUrl, auth)
+        console.log('Transcription complete, length:', transcript.length)
+        return NextResponse.json({ 
+          transcript,
+          audioUrl: call.recordingUrl,
+          duration: call.duration,
+          callId: id,
+        })
+      } catch (assemblyErr) {
+        console.error('AssemblyAI failed:', assemblyErr)
+      }
+    }
+
+    // Fallback: try using the CTM transcript if available
+    console.log('Trying CTM native transcript...')
+    const transcriptData = await ctmClient.getCallTranscript(id)
+    if (transcriptData) {
       return NextResponse.json({ 
-        transcript: null, 
-        error: 'Transcription not configured',
-        callId: id 
+        transcript: transcriptData,
+        audioUrl: call.recordingUrl,
+        duration: call.duration,
+        callId: id,
       })
     }
 
-    const audioResponse = await fetch(call.recordingUrl, {
-      headers: {
-        'Authorization': `Basic ${Buffer.from(process.env.CTM_ACCESS_KEY + ':' + process.env.CTM_SECRET_KEY).toString('base64')}`,
-      },
-    })
-
-    if (!audioResponse.ok) {
-      return NextResponse.json({ error: 'Failed to download audio recording' }, { status: 500 })
-    }
-
-    const audioBuffer = await audioResponse.arrayBuffer()
-    const base64Audio = Buffer.from(audioBuffer).toString('base64')
-    const mimeType = audioResponse.headers.get('content-type') || 'audio/mpeg'
-
-    const transcriptResponse = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openrouterKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/whisper-large-v3',
-        audio: `data:${mimeType};base64,${base64Audio}`,
-        response_format: 'json',
-      }),
-    })
-
-    if (!transcriptResponse.ok) {
-      const errorText = await transcriptResponse.text()
-      console.error('OpenRouter transcription error:', errorText)
-      return NextResponse.json({ error: 'Failed to transcribe audio' }, { status: 500 })
-    }
-
-    const result = await transcriptResponse.json()
-    const transcript = result.text || ''
-
     return NextResponse.json({ 
-      transcript,
-      audioUrl: call.recordingUrl,
-      duration: call.duration,
-      callId: id,
+      transcript: null, 
+      error: 'No transcription available. Configure ASSEMBLYAI_API_KEY for audio transcription.',
+      callId: id 
     })
   } catch (error) {
     console.error('CTM transcript error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch transcript' },
+      { 
+        error: 'Failed to fetch transcript',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

@@ -11,14 +11,11 @@ export async function GET() {
     }
 
     const ctmClient = new CTMClient()
-    const calls = await ctmClient.getActiveCalls()
+    const userGroups = await ctmClient.getUserGroups()
 
-    return NextResponse.json({ calls })
+    return NextResponse.json({ userGroups })
   } catch (error) {
-    console.error('CTM active calls error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch active calls from CTM' },
-      { status: 500 }
-    )
+    console.error('CTM user groups error:', error)
+    return NextResponse.json({ error: 'Failed to fetch user groups' }, { status: 500 })
   }
 }

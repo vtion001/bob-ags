@@ -252,7 +252,7 @@ export class CTMClient {
       }
     }
 
-    return allCalls.slice(0, limit)
+    return allCalls
   }
 
   async getCall(callId: string): Promise<Call | null> {
@@ -541,6 +541,69 @@ export class CTMClient {
         : 0,
     }
   }
+
+  async getAgents(): Promise<{ id: string; name: string; email: string; uid: number }[]> {
+    try {
+      const allAgents: { id: string; name: string; email: string; uid: number }[] = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const endpoint = page === 1
+          ? `/accounts/${this.accountId}/agents.json`
+          : `/accounts/${this.accountId}/agents.json?page=${page}`
+        
+        const data = await this.makeRequest<{ agents?: CTMAgent[]; next_page?: string }>(endpoint)
+        
+        if (data.agents) {
+          for (const a of data.agents) {
+            allAgents.push({
+              id: a.id || String(a.uid) || '',
+              uid: a.uid || 0,
+              name: a.name || a.email || 'Unknown',
+              email: a.email || '',
+            })
+          }
+        }
+        
+        hasMore = !!data.next_page
+        if (hasMore) page++
+      }
+      
+      return allAgents
+    } catch {
+      return []
+    }
+  }
+
+  async getUserGroups(): Promise<{ id: string; name: string; userIds: number[] }[]> {
+    try {
+      const data = await this.makeRequest<{ user_groups?: CTMUserGroup[] }>(
+        `/accounts/${this.accountId}/user_groups.json`
+      )
+      return (data.user_groups || []).map(g => ({
+        id: String(g.id),
+        name: g.name || 'Unknown',
+        userIds: g.user_ids || [],
+      }))
+    } catch (err) {
+      console.error('[CTM] getUserGroups error:', err)
+      return []
+    }
+  }
+}
+
+interface CTMAgent {
+  id: string
+  uid: number
+  name?: string
+  email?: string
+}
+
+interface CTMUserGroup {
+  id: number
+  name?: string
+  user_ids?: number[]
 }
 
 export function createCTMClient(): CTMClient {

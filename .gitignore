@@ -13,7 +13,16 @@ next.user-config.*
 .env*.local
 .env.production
 
+# Supabase
+.supabase/
+supabase/.temp/
+
 # Common ignores
 node_modules/
 .next/
 .DS_Store
+
+# Supabase secrets (never commit)
+# NEXT_PUBLIC_SUPABASE_URL=
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=
+# SUPABASE_SERVICE_ROLE_KEY=

@@ -22,6 +22,7 @@ export default function CallDetailPage() {
   const [call, setCall] = useState<Call | null>(null)
   const [transcript, setTranscript] = useState<string>('')
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -39,35 +40,49 @@ export default function CallDetailPage() {
           setAnalysis(data.call.analysis)
         }
 
-        const transcriptRes = await fetch(`/api/ctm/calls/${callId}/transcript`)
-        if (transcriptRes.ok) {
-          const transcriptData = await transcriptRes.json()
-          if (transcriptData.transcript) {
-            setTranscript(transcriptData.transcript)
-            if (!data.call.analysis) {
-              setIsAnalyzing(true)
-              try {
-                const analyzeRes = await fetch('/api/ctm/calls/analyze', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ callIds: [callId] }),
-                })
-                if (analyzeRes.ok) {
-                  const analyzeData = await analyzeRes.json()
-                  const result = analyzeData.results?.[0]
-                  if (result?.success && result.analysis) {
-                    setAnalysis(result.analysis)
+        // Auto-transcribe if recording exists and no transcript
+        if (data.call.recordingUrl && !data.call.transcript) {
+          setIsTranscribing(true)
+          try {
+            const transcriptRes = await fetch(`/api/ctm/calls/${callId}/transcript`)
+            const transcriptData = await transcriptRes.json()
+            
+            if (transcriptData.transcript) {
+              setTranscript(transcriptData.transcript)
+              
+              // Auto-analyze after transcription
+              if (!data.call.analysis) {
+                setIsAnalyzing(true)
+                try {
+                  const analyzeRes = await fetch('/api/ctm/calls/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ callIds: [callId] }),
+                  })
+                  if (analyzeRes.ok) {
+                    const analyzeData = await analyzeRes.json()
+                    const result = analyzeData.results?.[0]
+                    if (result?.success && result.analysis) {
+                      setAnalysis(result.analysis)
+                    }
                   }
+                } catch (err) {
+                  console.error('Analysis failed:', err)
+                } finally {
+                  setIsAnalyzing(false)
                 }
-              } catch (err) {
-                console.error('Analysis failed:', err)
-              } finally {
-                setIsAnalyzing(false)
               }
+            } else if (transcriptData.error) {
+              setTranscriptError(transcriptData.error + (transcriptData.details ? `: ${transcriptData.details}` : ''))
             }
-          } else if (transcriptData.error) {
-            setTranscriptError(transcriptData.error)
+          } catch (err) {
+            console.error('Transcription failed:', err)
+            setTranscriptError('Failed to transcribe audio')
+          } finally {
+            setIsTranscribing(false)
           }
+        } else if (data.call.transcript) {
+          setTranscript(data.call.transcript)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
@@ -230,8 +245,43 @@ export default function CallDetailPage() {
 
           {/* Transcript */}
           <Card className="p-6">
-            <h3 className="text-lg font-bold text-navy-900 mb-4">Transcript</h3>
-            {transcript ? (
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-navy-900">Transcript</h3>
+              {!transcript && !transcriptError && call.recordingUrl && (
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={async () => {
+                    setTranscriptError(null)
+                    setIsTranscribing(true)
+                    try {
+                      const res = await fetch(`/api/ctm/calls/${callId}/transcript`)
+                      const data = await res.json()
+                      if (data.transcript) {
+                        setTranscript(data.transcript)
+                      } else if (data.error) {
+                        setTranscriptError(data.error + (data.details ? `: ${data.details}` : ''))
+                      }
+                    } catch (err) {
+                      setTranscriptError('Failed to transcribe')
+                    } finally {
+                      setIsTranscribing(false)
+                    }
+                  }}
+                >
+                  Transcribe
+                </Button>
+              )}
+            </div>
+            {isTranscribing ? (
+              <div className="bg-navy-50 rounded-lg p-4 text-navy-600 text-sm flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Transcribing audio...
+              </div>
+            ) : transcript ? (
               <div className="bg-navy-50 rounded-lg p-4 text-navy-700 text-sm leading-relaxed whitespace-pre-wrap">
                 {transcript}
               </div>
