@@ -3,7 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase()
+    const supabase = await createServerSupabase(request)
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {

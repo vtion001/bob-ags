@@ -26,6 +26,28 @@ interface DashboardStats {
   avgScore: string
 }
 
+type TimeRange = '24h' | '7d' | '30d' | '90d' | 'custom'
+
+function getHoursFromRange(range: TimeRange): number {
+  switch (range) {
+    case '24h': return 24
+    case '7d': return 168
+    case '30d': return 720
+    case '90d': return 2160
+    default: return 168
+  }
+}
+
+function formatDateRange(range: TimeRange): string {
+  switch (range) {
+    case '24h': return 'Last 24 Hours'
+    case '7d': return 'Last 7 Days'
+    case '30d': return 'Last 30 Days'
+    case '90d': return 'Last 90 Days'
+    case 'custom': return 'Custom Range'
+  }
+}
+
 export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -35,6 +57,10 @@ export default function DashboardPage() {
   const [allAgents, setAllAgents] = useState<Agent[]>([])
   const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
+  const [selectedAgentUid, setSelectedAgentUid] = useState<number | null>(null)
+  const [timeRange, setTimeRange] = useState<TimeRange>('7d')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
   const [stats, setStats] = useState<DashboardStats>({
     totalCalls: 0,
     analyzed: 0,
@@ -64,10 +90,13 @@ export default function DashboardPage() {
   const handleGroupChange = (groupId: string) => {
     setSelectedGroup(groupId)
     setSelectedAgent('all')
+    setSelectedAgentUid(null)
   }
 
   const handleAgentChange = (agentId: string) => {
     setSelectedAgent(agentId)
+    const agent = allAgents.find(a => a.id === agentId)
+    setSelectedAgentUid(agent?.uid || null)
   }
 
   const getAvailableAgents = (): Agent[] => {
@@ -79,28 +108,53 @@ export default function DashboardPage() {
     return allAgents.filter(agent => group.userIds.includes(agent.uid))
   }
 
+  const getHoursParam = (): number => {
+    if (timeRange === 'custom' && customStartDate && customEndDate) {
+      const start = new Date(customStartDate)
+      const end = new Date(customEndDate)
+      const hours = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60)))
+      return Math.min(hours, 2160)
+    }
+    return getHoursFromRange(timeRange)
+  }
+
   const fetchData = async () => {
     try {
-      let url = '/api/ctm/dashboard/stats?limit=100&hours=168'
-      if (selectedAgent !== 'all') {
-        url += `&agentId=${selectedAgent}`
+      const hours = getHoursParam()
+      let url = `/api/ctm/dashboard/stats?limit=100&hours=${hours}`
+      
+      if (selectedAgentUid !== null) {
+        url += `&agentId=${selectedAgentUid}`
       }
       
       const res = await fetch(url)
       if (!res.ok) throw new Error('Failed to fetch data')
       const data = await res.json()
       
-      const inboundCalls = (data.recentCalls || []).filter(
+      let filteredCalls = (data.recentCalls || []).filter(
         (call: Call) => call.direction === 'inbound'
       )
       
-      const inboundTotal = (data.stats.totalCalls || 0)
+      if (selectedGroup !== 'all') {
+        const group = userGroups.find(g => g.id === selectedGroup)
+        if (group) {
+          filteredCalls = filteredCalls.filter((call: Call) => {
+            if (call.agent?.id) {
+              const agent = allAgents.find(a => a.id === call.agent?.id)
+              return agent ? group.userIds.includes(agent.uid) : false
+            }
+            return false
+          })
+        }
+      }
+      
+      const inboundTotal = filteredCalls.length
       
       setStats({
         ...data.stats,
         totalCalls: inboundTotal,
       })
-      setRecentCalls(inboundCalls)
+      setRecentCalls(filteredCalls.slice(0, 50))
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -109,7 +163,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData()
-  }, [selectedAgent])
+  }, [selectedAgentUid, selectedGroup, timeRange, customStartDate, customEndDate])
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -119,7 +173,7 @@ export default function DashboardPage() {
     }, 30000)
     
     return () => clearInterval(interval)
-  }, [autoRefresh, selectedAgent])
+  }, [autoRefresh, selectedAgentUid, selectedGroup, timeRange])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -182,7 +236,40 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-navy-900 mb-2">Dashboard</h1>
           <p className="text-navy-500">Monitor and analyze your calls in real-time</p>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-navy-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
+            >
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          {timeRange === 'custom' && (
+            <>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
+              />
+              <span className="text-navy-500">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
+              />
+            </>
+          )}
           {userGroups.length > 0 && (
             <select
               value={selectedGroup}
@@ -197,7 +284,7 @@ export default function DashboardPage() {
               ))}
             </select>
           )}
-          {(allAgents.length > 0 || getAvailableAgents().length > 0) && (
+          {getAvailableAgents().length > 0 && (
             <select
               value={selectedAgent}
               onChange={(e) => handleAgentChange(e.target.value)}
@@ -315,8 +402,25 @@ export default function DashboardPage() {
 
       <div>
         <div className="mb-5">
-          <h2 className="text-xl font-bold text-navy-900">Recent Calls</h2>
-          <p className="text-navy-500 text-sm mt-1">Latest 10 calls with analysis</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-navy-900">Recent Calls</h2>
+            <div className="flex gap-2 text-sm text-navy-500">
+              {selectedGroup !== 'all' && (
+                <span className="px-2 py-1 bg-navy-100 rounded">
+                  Group: {userGroups.find(g => g.id === selectedGroup)?.name}
+                </span>
+              )}
+              {selectedAgent !== 'all' && (
+                <span className="px-2 py-1 bg-navy-100 rounded">
+                  Agent: {allAgents.find(a => a.id === selectedAgent)?.name}
+                </span>
+              )}
+              <span className="px-2 py-1 bg-navy-100 rounded">
+                {formatDateRange(timeRange)}
+              </span>
+            </div>
+          </div>
+          <p className="text-navy-500 text-sm mt-1">{recentCalls.length} calls found</p>
         </div>
         <CallTable calls={recentCalls} />
       </div>

@@ -4,7 +4,7 @@ import { analyzeTranscript } from '@/lib/ai'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase()
+    const supabase = await createServerSupabase(request)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json(
