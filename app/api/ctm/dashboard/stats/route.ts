@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase/server'
 import { CTMClient } from '@/lib/ctm'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session) {
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '100')
     const hours = parseInt(searchParams.get('hours') || '24')
+    const agentId = searchParams.get('agentId')
 
     const ctmClient = new CTMClient()
-    const calls = await ctmClient.getCalls({ limit, hours })
+    const calls = await ctmClient.getCalls({ limit, hours, agentId: agentId || undefined })
     
     const inboundCalls = calls.filter(c => c.direction === 'inbound')
     const totalCalls = inboundCalls.length

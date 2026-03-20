@@ -6,6 +6,19 @@ import StatsCard from '@/components/StatsCard'
 import CallTable from '@/components/CallTable'
 import { Call } from '@/lib/ctm'
 
+interface Agent {
+  id: string
+  uid: number
+  name: string
+  email: string
+}
+
+interface UserGroup {
+  id: string
+  name: string
+  userIds: number[]
+}
+
 interface DashboardStats {
   totalCalls: number
   analyzed: number
@@ -18,6 +31,10 @@ export default function DashboardPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeProgress, setAnalyzeProgress] = useState<string>('')
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([])
+  const [allAgents, setAllAgents] = useState<Agent[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<string>('all')
+  const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [stats, setStats] = useState<DashboardStats>({
     totalCalls: 0,
     analyzed: 0,
@@ -27,9 +44,49 @@ export default function DashboardPage() {
   const [recentCalls, setRecentCalls] = useState<Call[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    fetchAgents()
+  }, [])
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch('/api/ctm/agents')
+      if (res.ok) {
+        const data = await res.json()
+        setAllAgents(data.agents || [])
+        setUserGroups(data.userGroups || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch agents:', err)
+    }
+  }
+
+  const handleGroupChange = (groupId: string) => {
+    setSelectedGroup(groupId)
+    setSelectedAgent('all')
+  }
+
+  const handleAgentChange = (agentId: string) => {
+    setSelectedAgent(agentId)
+  }
+
+  const getAvailableAgents = (): Agent[] => {
+    if (selectedGroup === 'all') {
+      return allAgents
+    }
+    const group = userGroups.find(g => g.id === selectedGroup)
+    if (!group) return []
+    return allAgents.filter(agent => group.userIds.includes(agent.uid))
+  }
+
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/ctm/dashboard/stats?limit=100&hours=168')
+      let url = '/api/ctm/dashboard/stats?limit=100&hours=168'
+      if (selectedAgent !== 'all') {
+        url += `&agentId=${selectedAgent}`
+      }
+      
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Failed to fetch data')
       const data = await res.json()
       
@@ -52,7 +109,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [selectedAgent])
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -62,7 +119,7 @@ export default function DashboardPage() {
     }, 30000)
     
     return () => clearInterval(interval)
-  }, [autoRefresh])
+  }, [autoRefresh, selectedAgent])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -124,8 +181,36 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-navy-900 mb-2">Dashboard</h1>
           <p className="text-navy-500">Monitor and analyze your calls in real-time</p>
-        </div>0
+        </div>
         <div className="flex gap-3 items-center">
+          {userGroups.length > 0 && (
+            <select
+              value={selectedGroup}
+              onChange={(e) => handleGroupChange(e.target.value)}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
+            >
+              <option value="all">All Groups</option>
+              {userGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {(allAgents.length > 0 || getAvailableAgents().length > 0) && (
+            <select
+              value={selectedAgent}
+              onChange={(e) => handleAgentChange(e.target.value)}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
+            >
+              <option value="all">All Agents</option>
+              {getAvailableAgents().map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+          )}
           <Button
             variant="secondary"
             size="md"

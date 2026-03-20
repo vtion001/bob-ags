@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession()
+    const supabase = await createServerSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    return NextResponse.json({ email: session.email })
+    return NextResponse.json({ email: user.email })
   } catch (error) {
     console.error('Session error:', error)
     return NextResponse.json(

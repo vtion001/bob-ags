@@ -6,10 +6,19 @@ import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import CallTable from '@/components/CallTable'
 import { Call } from '@/lib/ctm'
+import { createClient } from '@/lib/supabase/client'
+
+interface AgentProfile {
+  id: string
+  name: string
+  agent_id: string
+  email?: string
+}
 
 export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [accountIdFilter, setAccountIdFilter] = useState('')
+  const [agentIdFilter, setAgentIdFilter] = useState('')
+  const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([])
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [scoreFilter, setScoreFilter] = useState({ min: 0, max: 100 })
   const [filteredCalls, setFilteredCalls] = useState<Call[]>([])
@@ -18,11 +27,32 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const fetchAgents = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('agent_profiles')
+        .select('*')
+        .order('name')
+      
+      if (!error && data) {
+        setAgentProfiles(data)
+      }
+    }
+    fetchAgents()
+  }, [])
+
+  useEffect(() => {
     const fetchCalls = async () => {
       try {
         setIsLoading(true)
         setError(null)
-        const res = await fetch('/api/ctm/calls?limit=100')
+        
+        let url = '/api/ctm/calls?limit=500&hours=168'
+        if (agentIdFilter) {
+          url += `&agent_id=${encodeURIComponent(agentIdFilter)}`
+        }
+        
+        const res = await fetch(url)
         if (!res.ok) {
           if (res.status === 401) {
             throw new Error('Please log in to view calls')
@@ -41,7 +71,7 @@ export default function HistoryPage() {
       }
     }
     fetchCalls()
-  }, [])
+  }, [agentIdFilter])
 
   const handleSearch = () => {
     let results = [...allCalls]
@@ -50,12 +80,6 @@ export default function HistoryPage() {
       results = results.filter(call =>
         call.phone.includes(searchQuery) || 
         call.callerNumber?.includes(searchQuery)
-      )
-    }
-
-    if (accountIdFilter) {
-      results = results.filter(call =>
-        call.accountId?.includes(accountIdFilter)
       )
     }
 
@@ -134,14 +158,21 @@ export default function HistoryPage() {
             placeholder="Search by phone..."
           />
 
-          <Input
-            label="Account ID"
-            type="text"
-            value={accountIdFilter}
-            onChange={(e) => setAccountIdFilter(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Filter by account..."
-          />
+          <div>
+            <label className="block text-sm font-medium text-navy-700 mb-2">Agent</label>
+            <select
+              value={agentIdFilter}
+              onChange={(e) => setAgentIdFilter(e.target.value)}
+              className="w-full px-4 py-2.5 bg-white border border-navy-200 rounded-lg text-navy-900 transition-all duration-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20 focus:outline-none"
+            >
+              <option value="">All Agents</option>
+              {agentProfiles.map((agent) => (
+                <option key={agent.id} value={agent.agent_id}>
+                  {agent.name} ({agent.agent_id})
+                </option>
+              ))}
+            </select>
+          </div>
 
           <Input
             label="Min Score"
