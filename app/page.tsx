@@ -91,17 +91,25 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12 bg-navy-900">
         <div className="max-w-md text-center">
           <div className="mb-8">
-            <div className="inline-block p-4 bg-white/10 rounded-xl">
-              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-navy-900 font-bold text-xl">B</span>
-              </div>
-            </div>
+            <img
+              src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773964807/mlchltgq4cem5dfoogl3.png"
+              alt="BOB Logo"
+              className="w-64 h-auto mx-auto"
+            />
           </div>
           <h1 className="text-4xl font-bold text-white mb-4">BOB</h1>
           <p className="text-xl text-white/80 mb-6">Business Operations Butler</p>
           <p className="text-white/60 leading-relaxed">
             AI-powered business operations assistant. Automate workflows, analyze data, and streamline your business.
           </p>
+        </div>
+        <div className="mt-auto pt-12 flex flex-col items-center">
+          <p className="text-white/40 text-sm mb-3">Powered by</p>
+          <img
+            src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773384037/gpnkwelbdcwfjmw5axtx.webp"
+            alt="Alliance Global Solutions"
+            className="h-12 w-auto"
+          />
         </div>
       </div>
 
@@ -129,7 +137,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Card hoverable={false} className="mb-6">
+          <Card hoverable={false} className="mb-6 !border-0 shadow-none">
             <form onSubmit={handleEmailAuth} className="space-y-4">
               <Input
                 label="Email"
@@ -220,6 +228,15 @@ export default function LoginPage() {
               {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>
           </p>
+        </div>
+
+        <div className="mt-auto pt-12 flex flex-col items-center">
+          <p className="text-navy-400 text-sm mb-3">Powered by</p>
+          <img
+            src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773384037/gpnkwelbdcwfjmw5axtx.webp"
+            alt="Alliance Global Solutions"
+            className="h-10 w-auto"
+          />
         </div>
       </div>
     </div>

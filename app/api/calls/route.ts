@@ -34,6 +34,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('agent_id', agentId)
     }
 
+    const ctmCallId = searchParams.get('ctmCallId')
+    if (ctmCallId) {
+      query = query.eq('ctm_call_id', ctmCallId)
+    }
+
     const { data: cachedCalls, error: cacheError } = await query
 
     if (cacheError) {
