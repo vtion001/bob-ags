@@ -64,6 +64,12 @@ export default function MonitorPage() {
       if (source) return source;
       return "Unassigned";
     }
+    const KNOWN_GROUPS = ["Phillies", "Referrals", "Virtual", "Opener", "Alumni", "Finance", "General", "MA", "Hulk Onsite", "Hulk Offsite", "Legit MH", "Legit Beacon", "Travel Liason", "Daylight Misc", "Ember 12 Step", "Marty Direct", "Trost Virtual Admissions", "Retention Team", "Direct"];
+    for (const group of KNOWN_GROUPS) {
+      if (agentName.endsWith(group)) {
+        return group;
+      }
+    }
     const parts = agentName.split(" - ");
     return parts.length > 1 ? parts[parts.length - 1].trim() : "General";
   };
@@ -143,27 +149,15 @@ export default function MonitorPage() {
 
   const handleStartMonitoring = async () => {
     const apiKey = process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY;
-    console.log(
-      "[BOB Monitor] START - apiKey:",
-      apiKey ? `${apiKey.substring(0, 8)}...` : "MISSING/EMPTY",
-    );
-    console.log("[BOB Monitor] START - selectedCallId:", selectedCallId);
-    console.log(
-      "[BOB Monitor] START - NEXT_PUBLIC_ASSEMBLYAI_API_KEY env:",
-      JSON.stringify(process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY),
-    );
 
     if (!apiKey) {
-      const msg =
-        "AssemblyAI API key not configured. NEXT_PUBLIC_ASSEMBLYAI_API_KEY is empty.";
-      console.error("[BOB Monitor]", msg);
-      setError(msg);
+      setError("AssemblyAI API key not configured. Check NEXT_PUBLIC_ASSEMBLYAI_API_KEY in your environment variables.");
       return;
     }
 
     setError(null);
     setIsMonitoring(true);
-    setIsRecording(true);
+    setIsRecording(false);
     setLiveState({
       isConnected: false,
       isRecording: false,
@@ -193,16 +187,14 @@ export default function MonitorPage() {
         }));
       },
       onStateChange: (s: Partial<LiveCallState>) => {
-        console.log("[BOB Monitor] stateChange:", JSON.stringify(s));
         setLiveState((prev) => ({ ...prev, ...s }));
       },
       onError: (e: Error) => {
-        console.error("[BOB Monitor] AssemblyAI error:", e.message);
         setError(e.message);
         setIsRecording(false);
+        setIsMonitoring(false);
       },
       onClose: () => {
-        console.log("[BOB Monitor] AssemblyAI WebSocket closed");
         setIsRecording(false);
         setIsMonitoring(false);
       },
@@ -211,14 +203,9 @@ export default function MonitorPage() {
     realtimeRef.current = rt;
 
     try {
-      console.log("[BOB Monitor] Connecting to AssemblyAI WebSocket...");
       await rt.connect(selectedCallId || undefined);
-      console.log("[BOB Monitor] AssemblyAI WebSocket connected!");
     } catch (err) {
-      console.error("[BOB Monitor] Connect failed:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to start monitoring",
-      );
+      setError(err instanceof Error ? err.message : "Failed to start live analysis. Please check your microphone and API key.");
       setIsMonitoring(false);
       setIsRecording(false);
     }
@@ -578,7 +565,7 @@ export default function MonitorPage() {
                     <h3 className="text-lg font-bold text-navy-900">
                       Active Calls
                     </h3>
-                    {groups.length > 1 && (
+                    {groups.length > 0 && (
                       <select
                         value={selectedGroup}
                         onChange={(e) => setSelectedGroup(e.target.value)}
