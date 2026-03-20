@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -15,35 +15,39 @@ import {
 } from '@/components/call-detail'
 import { Call } from '@/lib/ctm'
 
+interface RubricResult {
+  id: string
+  criterion: string
+  pass: boolean
+  ztp: boolean
+  autoFail: boolean
+  details: string
+  deduction: number
+  severity: string
+  category: string
+}
+
+interface RubricBreakdown {
+  opening_score: number
+  opening_max: number
+  probing_score: number
+  probing_max: number
+  qualification_score_detail: number
+  qualification_max: number
+  closing_score: number
+  closing_max: number
+  compliance_score: number
+  compliance_max: number
+}
+
 interface AnalysisResult {
   score: number
   sentiment: string
   summary: string
   tags: string[]
   disposition: string
-  rubric_results?: Array<{
-    id: string
-    criterion: string
-    pass: boolean
-    ztp: boolean
-    autoFail: boolean
-    details: string
-    deduction: number
-    severity: string
-    category: string
-  }>
-  rubric_breakdown?: {
-    opening_score: number
-    opening_max: number
-    probing_score: number
-    probing_max: number
-    qualification_score_detail: number
-    qualification_max: number
-    closing_score: number
-    closing_max: number
-    compliance_score: number
-    compliance_max: number
-  }
+  rubric_results?: RubricResult[]
+  rubric_breakdown?: RubricBreakdown
 }
 
 export default function CallDetailPage() {
@@ -60,61 +64,69 @@ export default function CallDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchCallDetails = async () => {
+  const fetchCallDetails = useCallback(async () => {
     try {
       const res = await fetch(`/api/calls?ctmCallId=${callId}&skipSync=true`)
       const data = await res.json()
-      
+
       if (data.calls && data.calls.length > 0) {
-        return data.calls[0]
+        const c = data.calls[0]
+        if (c.analysis) {
+          c.score = c.analysis.score
+          c.sentiment = c.analysis.sentiment
+          c.summary = c.analysis.summary
+          c.tags = c.analysis.tags
+          c.disposition = c.analysis.disposition
+        }
+        return c
       }
-      
+
       const ctmRes = await fetch(`/api/ctm/calls/${callId}`)
       if (ctmRes.ok) {
         const ctmData = await ctmRes.json()
         if (ctmData.call) {
-          const call = ctmData.call
-          if (call.analysis) {
-            call.score = call.analysis.score
-            call.sentiment = call.analysis.sentiment
-            call.summary = call.analysis.summary
-            call.tags = call.analysis.tags
-            call.disposition = call.analysis.disposition
+          const c = ctmData.call
+          if (c.analysis) {
+            c.score = c.analysis.score
+            c.sentiment = c.analysis.sentiment
+            c.summary = c.analysis.summary
+            c.tags = c.analysis.tags
+            c.disposition = c.analysis.disposition
           }
-          return call
+          return c
         }
       }
-      
+
       throw new Error('Call not found')
     } catch (err) {
       throw err
     }
-  }
+  }, [callId])
 
-  const handleTranscribe = async () => {
+  const handleTranscribe = useCallback(async () => {
     setTranscriptError(null)
     setIsTranscribing(true)
     try {
       const res = await fetch(`/api/ctm/calls/${callId}/transcript`)
       const data = await res.json()
-      
+
       if (data.transcript) {
         setTranscript(data.transcript)
-        return true
+        return data.transcript as string
       } else if (data.error) {
         setTranscriptError(data.error + (data.details ? `: ${data.details}` : ''))
-        return false
+        return null
       }
-      return false
-    } catch (err) {
+      return null
+    } catch {
       setTranscriptError('Failed to transcribe audio')
-      return false
+      return null
     } finally {
       setIsTranscribing(false)
     }
-  }
+  }, [callId])
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     setIsAnalyzing(true)
     try {
       const res = await fetch('/api/ctm/calls/analyze', {
@@ -122,13 +134,18 @@ export default function CallDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callIds: [callId] }),
       })
-      
+
       if (res.ok) {
         const data = await res.json()
         const result = data.results?.[0]
         if (result?.success && result.analysis) {
-          setAnalysis(result.analysis)
+          setAnalysis((prev) => ({
+            ...prev,
+            ...result.analysis,
+          }))
           return true
+        } else if (result?.error) {
+          setError(`Analysis error: ${result.error}`)
         }
       }
       return false
@@ -138,31 +155,35 @@ export default function CallDetailPage() {
     } finally {
       setIsAnalyzing(false)
     }
-  }
+  }, [callId])
 
   useEffect(() => {
     const init = async () => {
       try {
         const fetchedCall = await fetchCallDetails()
         setCall(fetchedCall)
-        
-        if (fetchedCall.score !== undefined || fetchedCall.sentiment) {
+
+        if (fetchedCall.analysis) {
           setAnalysis({
             score: fetchedCall.score || 0,
             sentiment: fetchedCall.sentiment || 'neutral',
             summary: fetchedCall.summary || '',
             tags: fetchedCall.tags || [],
-            disposition: fetchedCall.disposition || ''
+            disposition: fetchedCall.disposition || '',
+            rubric_results: (fetchedCall.analysis as AnalysisResult).rubric_results,
+            rubric_breakdown: (fetchedCall.analysis as AnalysisResult).rubric_breakdown,
           })
         }
 
         if (fetchedCall.transcript) {
           setTranscript(fetchedCall.transcript)
+          if (!fetchedCall.analysis?.score && !fetchedCall.analysis?.sentiment) {
+            await handleAnalyze()
+          }
         } else if (fetchedCall.recordingUrl) {
           setIsTranscribing(true)
-          const transcribed = await handleTranscribe()
-          
-          if (transcribed && !fetchedCall.score && !fetchedCall.sentiment) {
+          const transcriptText = await handleTranscribe()
+          if (transcriptText) {
             await handleAnalyze()
           }
         }
@@ -174,23 +195,7 @@ export default function CallDetailPage() {
     }
 
     init()
-  }, [callId])
-
-  const onTranscribe = async () => {
-    await handleTranscribe()
-  }
-
-  const onCreateTask = () => {
-    console.log('Create task for call:', callId)
-  }
-
-  const onAddToSalesforce = () => {
-    console.log('Add to Salesforce:', callId)
-  }
-
-  const onScheduleFollowUp = () => {
-    console.log('Schedule follow-up for call:', callId)
-  }
+  }, [callId, fetchCallDetails, handleTranscribe, handleAnalyze])
 
   if (isLoading) {
     return (
@@ -226,6 +231,9 @@ export default function CallDetailPage() {
     )
   }
 
+  const hasTranscript = !!transcript
+  const hasAnalysis = !!analysis?.rubric_results?.length
+
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       <Button variant="ghost" onClick={() => router.back()} className="mb-6">
@@ -235,7 +243,7 @@ export default function CallDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}
         <div className="lg:col-span-1 space-y-6">
-          <CallScoreCard 
+          <CallScoreCard
             score={analysis?.score || call.score || 0}
             sentiment={analysis?.sentiment}
           />
@@ -252,7 +260,7 @@ export default function CallDetailPage() {
 
         {/* Right column */}
         <div className="lg:col-span-2 space-y-6">
-          <AIAnalysisCard 
+          <AIAnalysisCard
             analysis={analysis}
             isAnalyzing={isAnalyzing}
             call={call}
@@ -262,25 +270,27 @@ export default function CallDetailPage() {
             rubricResults={analysis?.rubric_results}
             rubricBreakdown={analysis?.rubric_breakdown}
             isAnalyzing={isAnalyzing}
+            hasTranscript={hasTranscript}
+            onRunAnalysis={async () => { await handleAnalyze() }}
           />
-          
-          <AudioPlayerCard 
+
+          <AudioPlayerCard
             audioUrl={call.recordingUrl || ''}
             callId={call.id}
           />
-          
+
           <TranscriptCard
             transcript={transcript}
             transcriptError={transcriptError}
             isTranscribing={isTranscribing}
             hasRecording={!!call.recordingUrl}
-            onTranscribe={onTranscribe}
+            onTranscribe={handleTranscribe}
           />
-          
+
           <ActionButtonsCard
-            onCreateTask={onCreateTask}
-            onAddToSalesforce={onAddToSalesforce}
-            onScheduleFollowUp={onScheduleFollowUp}
+            onCreateTask={() => console.log('Create task for call:', callId)}
+            onAddToSalesforce={() => console.log('Add to Salesforce:', callId)}
+            onScheduleFollowUp={() => console.log('Schedule follow-up for call:', callId)}
           />
         </div>
       </div>

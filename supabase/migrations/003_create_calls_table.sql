@@ -33,6 +33,8 @@ CREATE TABLE public.calls (
   summary TEXT,
   tags JSONB DEFAULT '[]'::jsonb,
   disposition TEXT,
+  rubric_results JSONB DEFAULT null,
+  rubric_breakdown JSONB DEFAULT null,
   synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

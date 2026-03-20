@@ -12,18 +12,18 @@ export default function ScoreCircle({ score, label = 'Score', size = 'md' }: Sco
   const validScore = score && !isNaN(score) ? score : 0
   
   const getColorStyles = () => {
-    if (validScore >= 75) {
-      return 'border-red-500 bg-red-500/10'
-    } else if (validScore >= 50) {
-      return 'border-amber-500 bg-amber-500/10'
+    if (validScore >= 70) {
+      return 'border-green-600 bg-green-50'
+    } else if (validScore >= 40) {
+      return 'border-navy-500 bg-navy-50'
     } else {
-      return 'border-slate-500 bg-slate-500/10'
+      return 'border-red-500 bg-red-50'
     }
   }
 
   const getLabel = () => {
-    if (validScore >= 75) return 'Hot'
-    if (validScore >= 50) return 'Warm'
+    if (validScore >= 70) return 'Warm'
+    if (validScore >= 40) return 'Neutral'
     return 'Cold'
   }
 

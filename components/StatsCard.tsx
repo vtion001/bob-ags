@@ -23,7 +23,7 @@ export default function StatsCard({ label, value, icon, trend }: StatsCardProps)
         <p className="text-navy-500 text-sm font-medium">{label}</p>
         <p className="text-3xl font-bold text-navy-900 mt-1">{value}</p>
         {trend && (
-          <p className={`text-xs mt-2 font-medium ${trend.direction === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <p className={`text-xs mt-2 font-medium ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
             {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.value)}%
           </p>
         )}

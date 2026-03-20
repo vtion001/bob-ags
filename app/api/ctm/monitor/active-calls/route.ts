@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         let allCalls: Awaited<ReturnType<CTMClient['calls']['getActiveCalls']>> = []
 
         try {
-          allCalls = await ctmClient.calls.getActiveCalls()
+          allCalls = await ctmClient.calls.getRecentCalls(5)
         } catch {
           return NextResponse.json({ calls: [], meta: { assignedAgentId, assignedGroupId, isAdmin: false } })
         }
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     }
 
     const ctmClient = new CTMClient()
-    const calls = await ctmClient.calls.getActiveCalls()
+    const calls = await ctmClient.calls.getRecentCalls(5)
 
     return NextResponse.json({
       calls,

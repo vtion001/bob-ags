@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('calls')
-      .select('id, ctm_call_id, phone, direction, duration, status, timestamp, caller_number, tracking_number, tracking_label, source, source_id, agent_id, agent_name, recording_url, transcript, city, state, postal_code, notes, talk_time, wait_time, ring_time, score, sentiment, summary, tags, disposition, synced_at')
+      .select('id, ctm_call_id, phone, direction, duration, status, timestamp, caller_number, tracking_number, tracking_label, source, source_id, agent_id, agent_name, recording_url, transcript, city, state, postal_code, notes, talk_time, wait_time, ring_time, score, sentiment, summary, tags, disposition, synced_at, rubric_results, rubric_breakdown')
       .eq('user_id', user.id)
       .gte('timestamp', since)
       .order('timestamp', { ascending: false })
@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
       tags: call.tags,
       disposition: call.disposition,
       syncedAt: call.synced_at,
+      rubricResults: call.rubric_results,
+      rubricBreakdown: call.rubric_breakdown,
     }))
     
     // Check if cache is stale (older than 5 minutes)

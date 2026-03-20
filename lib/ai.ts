@@ -40,7 +40,7 @@ export interface Analysis {
   rubric_breakdown?: RubricBreakdown
 }
 
-const RUBRIC_CRITERIA = [
+export const RUBRIC_CRITERIA = [
   { id: '1.1', name: 'Used approved greeting', category: 'Opening', severity: 'Minor', deduction: 2, passPhrases: ['hello flyland', 'flyland this is'], failPhrases: ['hi there', 'flyland help line'], ztp: false, autoFail: false },
   { id: '1.2', name: 'Confirmed caller name and relationship', category: 'Opening', severity: 'Minor', deduction: 2, passPhrases: ["what's your name", 'can i get your name', 'may i have your name'], failPhrases: [], ztp: false, autoFail: false },
   { id: '1.3', name: 'Identified reason for call promptly', category: 'Opening', severity: 'Major', deduction: 5, passPhrases: ['how can i help', 'what brings you', 'reason for your call'], failPhrases: ['assumed reason', 'jumped to questions'], ztp: false, autoFail: false },

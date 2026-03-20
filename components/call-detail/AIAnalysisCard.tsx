@@ -22,28 +22,6 @@ interface AIAnalysisCardProps {
 }
 
 export default function AIAnalysisCard({ analysis, isAnalyzing, call }: AIAnalysisCardProps) {
-  const getSentimentStyles = (sentiment: string) => {
-    switch (sentiment) {
-      case 'positive':
-        return 'bg-green-100 text-green-700'
-      case 'negative':
-        return 'bg-red-100 text-red-700'
-      case 'neutral':
-        return 'bg-blue-100 text-blue-700'
-      default:
-        return 'bg-slate-100 text-slate-600'
-    }
-  }
-
-  const getSentimentLabel = (sentiment: string) => {
-    switch (sentiment) {
-      case 'positive': return 'Hot Lead'
-      case 'neutral': return 'Warm Lead'
-      case 'negative': return 'Cold Lead'
-      default: return 'Unknown'
-    }
-  }
-
   const cleanDisposition = (disposition: string) => {
     if (disposition === '-------- dup unq --------' || !disposition) {
       return null
@@ -88,9 +66,20 @@ export default function AIAnalysisCard({ analysis, isAnalyzing, call }: AIAnalys
         {/* Sentiment */}
         <div>
           <p className="text-sm text-navy-500 mb-2">Sentiment</p>
-          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getSentimentStyles(analysis.sentiment)}`}>
-            {getSentimentLabel(analysis.sentiment)} - {analysis.sentiment}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+              analysis.sentiment === 'positive'
+                ? 'bg-green-100 text-green-700'
+                : analysis.sentiment === 'negative'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-navy-100 text-navy-700'
+            }`}>
+              {analysis.sentiment === 'positive' ? 'Positive' : analysis.sentiment === 'negative' ? 'Negative' : 'Neutral'}
+            </span>
+            <span className="text-sm text-navy-400">
+              {analysis.sentiment === 'positive' ? '— Warm Lead' : analysis.sentiment === 'negative' ? '— Cold Lead' : '— Unknown'}
+            </span>
+          </div>
         </div>
 
         {/* Summary */}

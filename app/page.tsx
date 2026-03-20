@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -91,10 +92,15 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12 bg-white">
         <div className="max-w-md text-center">
           <div className="mb-8">
-            <img
-              src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773964807/mlchltgq4cem5dfoogl3.png"
+            <Image
+              src="/images/bob-logo.webp"
               alt="BOB Logo"
-              className="w-[440px] h-auto mx-auto"
+              width={440}
+              height={440}
+              priority
+              className="w-auto h-auto mx-auto"
+              style={{ maxWidth: '440px', maxHeight: '220px' }}
+              sizes="(max-width: 768px) 100vw, 440px"
             />
           </div>
           <p className="text-navy-500 leading-relaxed">

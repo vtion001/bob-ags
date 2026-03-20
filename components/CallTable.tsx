@@ -31,16 +31,16 @@ function formatDuration(seconds: number) {
 }
 
 function getScoreBadge(score?: number) {
-  if (!score) return { label: 'Pending', className: 'bg-slate-100 text-slate-600' }
+  if (!score) return { label: 'Pending', className: 'bg-navy-100 text-navy-600' }
   if (score >= 75) return { label: 'Hot', className: 'bg-navy-900 text-white' }
-  if (score >= 50) return { label: 'Warm', className: 'bg-amber-100 text-amber-800' }
-  return { label: 'Cold', className: 'bg-slate-100 text-slate-600' }
+  if (score >= 50) return { label: 'Warm', className: 'bg-navy-100 text-navy-800' }
+  return { label: 'Cold', className: 'bg-red-50 text-red-600' }
 }
 
 function StatusIcon({ status }: { status: string }) {
   if (status === 'completed') {
     return (
-      <span className="flex items-center gap-1.5 text-emerald-600">
+      <span className="flex items-center gap-1.5 text-green-600">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
@@ -50,7 +50,7 @@ function StatusIcon({ status }: { status: string }) {
   }
   if (status === 'missed') {
     return (
-      <span className="flex items-center gap-1.5 text-rose-600">
+      <span className="flex items-center gap-1.5 text-red-600">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -59,7 +59,7 @@ function StatusIcon({ status }: { status: string }) {
     )
   }
   return (
-    <span className="flex items-center gap-1.5 text-amber-600">
+    <span className="flex items-center gap-1.5 text-navy-500">
       <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
@@ -119,7 +119,7 @@ export default function CallTable({ calls, onCallClick }: CallTableProps) {
                 </td>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
-                    call.direction === 'inbound' ? 'text-emerald-600' : 'text-blue-600'
+                    call.direction === 'inbound' ? 'text-green-600' : 'text-navy-600'
                   }`}>
                     {call.direction === 'inbound' ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +140,7 @@ export default function CallTable({ calls, onCallClick }: CallTableProps) {
                 </td>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${badge.className}`}>
-                    {call.score ? `${Math.round(call.score)}%` : badge.label}
+                    {call.score !== undefined && call.score !== null ? Math.round(call.score) : badge.label}
                   </span>
                 </td>
                 <td className="px-5 py-4">

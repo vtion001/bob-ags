@@ -56,7 +56,12 @@ export class CallsService extends CTMClient {
   }
 
   async getActiveCalls(): Promise<Call[]> {
-    return this.getCalls({ status: 'in progress' })
+    return this.getCalls({ hours: 1 })
+  }
+
+  async getRecentCalls(minutes: number = 5): Promise<Call[]> {
+    const hours = Math.max(0.017, minutes / 60)
+    return this.getCalls({ hours, limit: 50 })
   }
 }
 
