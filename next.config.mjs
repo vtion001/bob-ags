@@ -4,8 +4,19 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/dbviya1rj/image/upload/**',
+      },
+    ],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  compress: true,
+  poweredByHeader: false,
   turbopack: {
     root: '/Users/archerterminez/Desktop/REPOSITORY/bob-ags',
   },

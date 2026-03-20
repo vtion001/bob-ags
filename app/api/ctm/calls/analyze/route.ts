@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
           analysis: {
             ...analysisResult,
             followUp: analysis.follow_up_required,
+            rubric_results: analysis.rubric_results,
+            rubric_breakdown: analysis.rubric_breakdown,
           },
         })
 
@@ -120,6 +122,8 @@ export async function POST(request: NextRequest) {
           summary: analysisResult.summary,
           tags: analysisResult.tags,
           disposition: analysisResult.disposition,
+          rubric_results: analysis.rubric_results,
+          rubric_breakdown: analysis.rubric_breakdown,
         })
       } catch (err) {
         console.error(`Error analyzing call ${callId}:`, err)
@@ -138,6 +142,8 @@ export async function POST(request: NextRequest) {
             summary: callUpdate.summary,
             tags: callUpdate.tags,
             disposition: callUpdate.disposition,
+            rubric_results: callUpdate.rubric_results || null,
+            rubric_breakdown: callUpdate.rubric_breakdown || null,
             synced_at: new Date().toISOString(),
           })
           .eq('ctm_call_id', callUpdate.ctm_call_id)

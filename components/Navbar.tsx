@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 import Button from '@/components/ui/Button'
 
 export interface NavbarProps {
@@ -26,13 +27,16 @@ export default function Navbar({ email, onLogout }: NavbarProps) {
   return (
     <nav className="bg-white border-b border-navy-200 sticky top-0 z-50 shadow-sm">
       <div className="h-16 flex items-center justify-between px-4 lg:px-6">
-        <div className="flex items-center gap-2">
-          <img 
-            src="https://res.cloudinary.com/dbviya1rj/image/upload/v1773964807/mlchltgq4cem5dfoogl3.png" 
-            alt="BOB" 
-            className="h-14 w-auto"
-          />
-        </div>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/images/bob-logo-nav.webp"
+              alt="BOB"
+              width={40}
+              height={40}
+              priority
+              className="h-10 w-auto"
+            />
+          </div>
 
         <div className="flex items-center gap-4">
           {email && (

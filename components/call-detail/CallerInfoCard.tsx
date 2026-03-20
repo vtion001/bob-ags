@@ -37,9 +37,9 @@ export default function CallerInfoCard({ call, formatDuration }: CallerInfoCardP
         <div>
           <p className="text-xs text-navy-400 uppercase">Status</p>
           <p className={`capitalize mt-1 ${
-            call.status === 'completed' ? 'text-emerald-600' :
+            call.status === 'completed' ? 'text-green-600' :
             call.status === 'missed' ? 'text-red-600' :
-            'text-amber-600'
+            'text-navy-700'
           }`}>
             {call.status}
           </p>

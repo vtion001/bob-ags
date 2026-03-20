@@ -1,32 +1,9 @@
 import React, { useState } from 'react'
 import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
 import type { CriterionResult } from '@/lib/ai'
 
 const CATEGORY_ORDER = ['Opening', 'Probing', 'Qualification', 'Closing', 'Compliance']
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Opening: 'border-l-blue-500 bg-blue-50/50',
-  Probing: 'border-l-purple-500 bg-purple-50/50',
-  Qualification: 'border-l-amber-500 bg-amber-50/50',
-  Closing: 'border-l-teal-500 bg-teal-50/50',
-  Compliance: 'border-l-red-500 bg-red-50/50',
-}
-
-const CATEGORY_BADGE: Record<string, string> = {
-  Opening: 'bg-blue-100 text-blue-700',
-  Probing: 'bg-purple-100 text-purple-700',
-  Qualification: 'bg-amber-100 text-amber-700',
-  Closing: 'bg-teal-100 text-teal-700',
-  Compliance: 'bg-red-100 text-red-700',
-}
-
-const SEVERITY_BADGE: Record<string, string> = {
-  Minor: 'bg-gray-100 text-gray-600',
-  Major: 'bg-orange-100 text-orange-700',
-  ZTP: 'bg-red-100 text-red-700',
-}
-
-const CATEGORY_SCORES: Record<string, string> = {}
 
 interface QAAnalysisCardProps {
   rubricResults?: CriterionResult[]
@@ -43,20 +20,8 @@ interface QAAnalysisCardProps {
     compliance_max: number
   }
   isAnalyzing?: boolean
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 85) return 'text-green-600'
-  if (score >= 70) return 'text-blue-600'
-  if (score >= 50) return 'text-amber-600'
-  return 'text-red-600'
-}
-
-function getScoreBg(score: number): string {
-  if (score >= 85) return 'bg-green-500'
-  if (score >= 70) return 'bg-blue-500'
-  if (score >= 50) return 'bg-amber-500'
-  return 'bg-red-500'
+  hasTranscript?: boolean
+  onRunAnalysis?: () => Promise<unknown>
 }
 
 function getCategoryScore(breakdown: QAAnalysisCardProps['rubricBreakdown'], category: string): { score: number; max: number } {
@@ -71,7 +36,7 @@ function getCategoryScore(breakdown: QAAnalysisCardProps['rubricBreakdown'], cat
   }
 }
 
-export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnalyzing }: QAAnalysisCardProps) {
+export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnalyzing, hasTranscript, onRunAnalysis }: QAAnalysisCardProps) {
   const [expanded, setExpanded] = useState(true)
 
   const byCategory = (category: string) =>
@@ -87,9 +52,34 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
         <h3 className="text-lg font-bold text-navy-900 mb-4">
           QA Breakdown
         </h3>
-        <div className="bg-navy-50 rounded-lg p-4 text-navy-500 text-center">
-          {isAnalyzing ? 'Running QA analysis...' : 'No QA criteria results yet. Analysis runs automatically after transcription.'}
-        </div>
+        {isAnalyzing ? (
+          <div className="bg-navy-50 rounded-lg p-6 text-center">
+            <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-navy-700 font-medium">Running QA analysis...</p>
+            <p className="text-navy-400 text-sm mt-1">Evaluating call against 25 criteria rubric...</p>
+          </div>
+        ) : (
+          <div className="bg-navy-50 rounded-lg p-6 text-center">
+            <p className="text-navy-700 font-medium mb-1">No QA analysis yet</p>
+            <p className="text-navy-400 text-sm mb-4">
+              {hasTranscript
+                ? 'Score this call against the 25-point QA rubric.'
+                : 'A transcript is required to run QA analysis.'}
+            </p>
+            {hasTranscript ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onRunAnalysis}
+                isLoading={isAnalyzing}
+              >
+                Run QA Analysis
+              </Button>
+            ) : (
+              <p className="text-navy-400 text-xs">Transcribe the call recording first.</p>
+            )}
+          </div>
+        )}
       </Card>
     )
   }
@@ -119,14 +109,9 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
             </span>
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-navy-400">
-            Tap to {expanded ? 'collapse' : 'expand'}
-          </span>
-          <svg className={`w-5 h-5 text-navy-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+        <svg className={`w-5 h-5 text-navy-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
       {expanded && (
@@ -139,9 +124,9 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
 
             return (
               <div key={category}>
-                <div className={`px-4 py-3 flex items-center justify-between border-l-4 ${CATEGORY_COLORS[category]}`}>
+                <div className="px-4 py-3 flex items-center justify-between border-l-4 border-l-navy-800 bg-navy-50/30">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-xs rounded font-bold ${CATEGORY_BADGE[category]}`}>
+                    <span className="px-2 py-0.5 text-xs rounded font-bold bg-navy-800 text-white">
                       {category}
                     </span>
                     <span className="text-xs text-navy-400">
@@ -149,26 +134,24 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-navy-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${getScoreBg(catPercent)}`}
-                        style={{ width: `${catPercent}%` }}
-                      />
-                    </div>
-                    <span className={`text-xs font-bold ${getScoreColor(catPercent)}`}>
-                      {catPercent}%
-                    </span>
+                      <div className="w-24 h-1.5 bg-navy-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${catPercent >= 70 ? 'bg-green-500' : catPercent >= 40 ? 'bg-navy-500' : 'bg-red-500'}`}
+                          style={{ width: `${catPercent}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-bold ${catPercent >= 70 ? 'text-green-600' : catPercent >= 40 ? 'text-navy-600' : 'text-red-600'}`}>
+                        {catPercent}%
+                      </span>
                   </div>
                 </div>
 
                 {items.map((item, idx) => (
-                  <div key={item.id || idx} className="px-4 py-2.5 flex items-start gap-3 hover:bg-navy-50/50 transition-colors">
+                  <div key={item.id || idx} className="px-4 py-2.5 flex items-start gap-3 hover:bg-navy-50/30 transition-colors">
                     <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
                       item.pass
                         ? 'bg-green-500 text-white'
-                        : item.autoFail
-                          ? 'bg-red-600 text-white'
-                          : 'bg-red-400 text-white'
+                        : 'bg-red-500 text-white'
                     }`}>
                       {item.pass ? (
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +166,7 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`text-sm font-medium ${item.pass ? 'text-green-700' : 'text-red-700'}`}>
+                        <p className={`text-sm font-medium ${item.pass ? 'text-navy-800' : 'text-navy-800'}`}>
                           {item.criterion || item.id}
                         </p>
                         {item.ztp && (
@@ -192,16 +175,13 @@ export default function QAAnalysisCard({ rubricResults, rubricBreakdown, isAnaly
                           </span>
                         )}
                         {item.autoFail && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-red-200 text-red-800 rounded font-bold">
+                          <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-bold">
                             AUTO-FAIL
                           </span>
                         )}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${SEVERITY_BADGE[item.severity] || 'bg-gray-100 text-gray-600'}`}>
-                          {item.severity}
-                        </span>
                       </div>
                       {item.details && (
-                        <p className={`text-xs mt-0.5 ${item.pass ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className="text-xs text-navy-400 mt-0.5">
                           {item.details}
                         </p>
                       )}

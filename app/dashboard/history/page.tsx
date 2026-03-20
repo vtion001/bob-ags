@@ -14,12 +14,23 @@ interface AgentProfile {
   name: string
   agent_id: string
   email?: string
+  groupId?: string
+  groupName?: string
+}
+
+interface UserGroup {
+  id: string
+  name: string
+  userIds: number[]
 }
 
 export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [agentIdFilter, setAgentIdFilter] = useState('')
   const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([])
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([])
+  const [groupFilter, setGroupFilter] = useState('')
+  const [analyzedOnly, setAnalyzedOnly] = useState(false)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [scoreFilter, setScoreFilter] = useState({ min: 0, max: 100 })
   const [filteredCalls, setFilteredCalls] = useState<Call[]>([])
@@ -28,18 +39,29 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchAgents = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('agent_profiles')
-        .select('*')
-        .order('name')
-      
-      if (!error && data) {
-        setAgentProfiles(data)
+    const fetchAgentsAndGroups = async () => {
+      try {
+        const res = await fetch('/api/ctm/agents')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.agents) {
+            const mappedAgents = data.agents.map((agent: any) => ({
+              id: agent.id || agent.uid?.toString() || '',
+              name: agent.name || 'Unknown',
+              agent_id: agent.uid?.toString() || agent.id || '',
+              email: agent.email || '',
+            }))
+            setAgentProfiles(mappedAgents)
+          }
+          if (data.userGroups) {
+            setUserGroups(data.userGroups)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch agents/groups:', err)
       }
     }
-    fetchAgents()
+    fetchAgentsAndGroups()
   }, [])
 
   useEffect(() => {
@@ -85,6 +107,21 @@ export default function HistoryPage() {
         call.phone.includes(searchQuery) || 
         call.callerNumber?.includes(searchQuery)
       )
+    }
+
+    if (analyzedOnly) {
+      results = results.filter(call => call.score !== undefined && call.score !== null && call.score > 0)
+    }
+
+    if (groupFilter) {
+      const group = userGroups.find(g => g.id === groupFilter)
+      if (group) {
+        results = results.filter(call => {
+          const agent = agentProfiles.find(a => a.agent_id === call.agent?.id?.toString())
+          if (!agent) return false
+          return group.userIds.includes(Number(agent.agent_id))
+        })
+      }
     }
 
     if (scoreFilter.min > 0 || scoreFilter.max < 100) {
@@ -152,7 +189,7 @@ export default function HistoryPage() {
       <Card className="p-6 mb-6">
         <h3 className="text-lg font-bold text-navy-900 mb-4">Search & Filter</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 mb-4">
           <Input
             label="Phone Number"
             type="text"
@@ -161,6 +198,23 @@ export default function HistoryPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search by phone..."
           />
+
+          <div>
+            <label className="block text-sm font-medium text-navy-700 mb-2">Group</label>
+            <Select
+              value={groupFilter}
+              onChange={setGroupFilter}
+              placeholder="All Groups"
+              options={[
+                { value: '', label: 'All Groups' },
+                ...userGroups.map((group) => ({
+                  value: group.id,
+                  label: `${group.name} (${group.userIds.length})`,
+                })),
+              ]}
+              className="w-full"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-navy-700 mb-2">Agent</label>
@@ -210,7 +264,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           <Input
             label="Start Date"
             type="date"
@@ -224,6 +278,18 @@ export default function HistoryPage() {
             value={dateRange.end}
             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
           />
+
+          <div className="flex items-center gap-3 h-[42px]">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={analyzedOnly}
+                onChange={(e) => setAnalyzedOnly(e.target.checked)}
+                className="w-4 h-4 rounded border-navy-300 text-navy-600 focus:ring-navy-500"
+              />
+              <span className="text-sm font-medium text-navy-700">Analyzed Only</span>
+            </label>
+          </div>
         </div>
       </Card>
 

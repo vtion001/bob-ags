@@ -420,9 +420,6 @@ export class AssemblyAIRealtime {
 
       this.onTranscript(transcript);
       this.analyzeText(transcriptText, speaker, elapsed);
-      this.onStateChange({
-        transcript: [...(this.state.transcript || []), transcript],
-      });
       return;
     }
 

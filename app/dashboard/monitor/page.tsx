@@ -10,6 +10,9 @@ import {
   type RealtimeInsight,
   type LiveCallState,
 } from "@/lib/realtime/assemblyai-realtime";
+import { RUBRIC_CRITERIA } from "@/lib/ai";
+import AgentAssistantPanel from "@/components/call-detail/AgentAssistantPanel";
+import NotesDispositionPanel from "@/components/call-detail/NotesDispositionPanel";
 
 interface MonitorMeta {
   isAdmin: boolean;
@@ -17,40 +20,7 @@ interface MonitorMeta {
   assignedGroupId: string | null;
 }
 
-const CRITERIA_ORDER = [
-  { id: "1.1", label: "Approved Greeting", category: "Opening" },
-  { id: "1.2", label: "Caller Name Confirmed", category: "Opening" },
-  { id: "1.3", label: "Reason for Call (< 30s)", category: "Opening" },
-  { id: "1.4", label: "Location Verified (State)", category: "Opening" },
-  { id: "2.1", label: "Sobriety Time Asked", category: "Probing" },
-  { id: "2.2", label: "Substance Type Asked", category: "Probing" },
-  { id: "2.3", label: "Insurance Type Asked", category: "Probing" },
-  { id: "2.4", label: "Concise Additional Info", category: "Probing" },
-  { id: "2.5", label: "Phone Number Verified", category: "Probing" },
-  {
-    id: "3.4",
-    label: "Avoided Unqualified Transfers",
-    category: "Qualification",
-    ztp: true,
-  },
-  { id: "3.7", label: "Empathy & Professionalism", category: "Qualification" },
-  { id: "5.1", label: "HIPAA Compliance", category: "Compliance", ztp: true },
-  { id: "5.2", label: "No Medical Advice", category: "Compliance", ztp: true },
-];
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Opening: "border-l-blue-500 bg-blue-50/50",
-  Probing: "border-l-purple-500 bg-purple-50/50",
-  Qualification: "border-l-amber-500 bg-amber-50/50",
-  Compliance: "border-l-red-500 bg-red-50/50",
-};
-
-const CATEGORY_BADGE: Record<string, string> = {
-  Opening: "bg-blue-100 text-blue-700",
-  Probing: "bg-purple-100 text-purple-700",
-  Qualification: "bg-amber-100 text-amber-700",
-  Compliance: "bg-red-100 text-red-700",
-};
+const ALL_CATEGORIES = ["Opening", "Probing", "Qualification", "Closing", "Compliance"];
 
 export default function MonitorPage() {
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -215,11 +185,6 @@ export default function MonitorPage() {
           ...prev,
           transcript: [...(prev.transcript || []), t],
         }));
-        setTimeout(
-          () =>
-            transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-          100,
-        );
       },
       onInsight: (i: RealtimeInsight) => {
         setRecentInsights((prev) => [i, ...prev].slice(0, 50));
@@ -293,14 +258,13 @@ export default function MonitorPage() {
       case "negative":
         return "text-red-600 bg-red-50 border-red-200";
       default:
-        return "text-blue-600 bg-blue-50 border-blue-200";
+        return "text-navy-700 bg-navy-50 border-navy-200";
     }
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return "text-green-600";
-    if (score >= 70) return "text-blue-600";
-    if (score >= 50) return "text-amber-600";
+    if (score >= 70) return "text-green-600";
+    if (score >= 40) return "text-navy-700";
     return "text-red-600";
   };
 
@@ -379,15 +343,13 @@ export default function MonitorPage() {
         return "bg-green-50 border-green-200 text-green-800";
       case "fail":
         return "bg-red-50 border-red-200 text-red-800";
-      case "warning":
-        return "bg-amber-50 border-amber-200 text-amber-800";
       default:
-        return "bg-blue-50 border-blue-200 text-blue-800";
+        return "bg-navy-50 border-navy-200 text-navy-800";
     }
   };
 
   const byCategory = (category: string) =>
-    CRITERIA_ORDER.filter((c) => c.category === category);
+    RUBRIC_CRITERIA.filter((c) => c.category === category);
 
   return (
     <div className="min-h-screen bg-white">
@@ -477,7 +439,7 @@ export default function MonitorPage() {
                       {selectedCallData.trackingLabel && (
                         <>
                           <div className="w-px h-4 bg-navy-200" />
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded font-medium">
+                          <span className="px-1.5 py-0.5 bg-navy-100 text-navy-700 text-xs rounded font-medium">
                             {selectedCallData.trackingLabel}
                           </span>
                         </>
@@ -746,7 +708,7 @@ export default function MonitorPage() {
                               {call.destinationNumber && (
                                 <div className="flex items-center gap-1.5">
                                   <svg
-                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-blue-400" : "text-blue-600"}`}
+                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-navy-300" : "text-navy-500"}`}
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -781,7 +743,7 @@ export default function MonitorPage() {
                               {call.poolNumber && (
                                 <div className="flex items-center gap-1.5">
                                   <svg
-                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-purple-400" : "text-purple-600"}`}
+                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-navy-300" : "text-navy-500"}`}
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -840,7 +802,7 @@ export default function MonitorPage() {
                               {call.source && (
                                 <div className="flex items-center gap-1.5">
                                   <svg
-                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-cyan-400" : "text-cyan-600"}`}
+                                    className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-navy-300" : "text-navy-500"}`}
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -942,12 +904,12 @@ export default function MonitorPage() {
                         </span>
                       )}
                       {selectedCallData?.destinationNumber && (
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-sm font-mono">
+                        <span className="px-2 py-0.5 bg-navy-50 text-navy-700 rounded text-sm font-mono">
                           → {selectedCallData.destinationNumber}
                         </span>
                       )}
                       {selectedCallData?.trackingLabel && (
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-sm font-medium">
+                        <span className="px-2 py-0.5 bg-navy-100 text-navy-700 rounded text-sm font-medium">
                           {selectedCallData.trackingLabel}
                         </span>
                       )}
@@ -968,7 +930,7 @@ export default function MonitorPage() {
                         <span
                           className={`text-xl font-bold ${getScoreColor(liveState.score)}`}
                         >
-                          {liveState.score}%
+                          {liveState.score}
                         </span>
                       )}
                     </div>
@@ -1035,7 +997,7 @@ export default function MonitorPage() {
                         </div>
                         <div className="flex flex-col border-l border-navy-200 pl-4">
                           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-navy-200">
-                            <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold text-white">
+                            <div className="w-6 h-6 rounded-full bg-navy-700 flex items-center justify-center text-xs font-bold text-white">
                               C
                             </div>
                             <span className="text-sm font-semibold text-navy-900">
@@ -1048,7 +1010,7 @@ export default function MonitorPage() {
                               .map((t, i) => (
                                 <div key={i} className="flex gap-2">
                                   <div className="flex-1">
-                                    <div className="inline-block px-3 py-2 rounded-2xl rounded-br-sm text-sm bg-purple-100 text-navy-900">
+                                    <div className="inline-block px-3 py-2 rounded-2xl rounded-br-sm text-sm bg-navy-100 text-navy-900">
                                       {t.text}
                                     </div>
                                     <p className="text-xs mt-1 text-navy-400">
@@ -1132,9 +1094,7 @@ export default function MonitorPage() {
                                   ? "bg-green-500 text-white"
                                   : insight.type === "fail"
                                     ? "bg-red-500 text-white"
-                                    : insight.type === "warning"
-                                      ? "bg-amber-500 text-white"
-                                      : "bg-blue-500 text-white"
+                                    : "bg-navy-600 text-white"
                               }`}
                             >
                               {getInsightIcon(insight.type)}
@@ -1142,7 +1102,7 @@ export default function MonitorPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span
-                                  className={`text-xs px-1.5 py-0.5 rounded font-semibold ${CATEGORY_BADGE[insight.category] || "bg-gray-100 text-gray-700"}`}
+                                  className="text-xs px-1.5 py-0.5 rounded font-semibold bg-navy-800 text-white"
                                 >
                                   {insight.category}
                                 </span>
@@ -1168,9 +1128,32 @@ export default function MonitorPage() {
                     </div>
                   )}
                 </Card>
+                <AgentAssistantPanel
+                  missingCriteria={Object.entries(liveState.criteriaStatus || {}).filter(([, v]) => !v.triggered).map(([k]) => k)}
+                  currentContext={{
+                    insurance: liveState.insurance,
+                    state: liveState.callerLocation,
+                    substance: liveState.substance,
+                    callerName: liveState.callerName || selectedCallData?.name,
+                    isCrisis: (liveState.transcript || []).some(t => t.text.toLowerCase().includes('suicide') || t.text.toLowerCase().includes('kill myself'))
+                  }}
+                  lastTranscript={liveState.transcript?.[liveState.transcript.length - 1]?.text}
+                />
               </div>
 
               <div className="xl:col-span-5 space-y-4">
+                <NotesDispositionPanel
+                  currentState={{
+                    callerName: liveState.callerName || selectedCallData?.name,
+                    callerPhone: liveState.callerPhone || selectedCallData?.phone,
+                    state: liveState.callerLocation,
+                    insurance: liveState.insurance,
+                    substance: liveState.substance,
+                    sobrietyTime: liveState.sobrietyTime,
+                  }}
+                  score={liveState.score || 0}
+                  missingCriteria={Object.entries(liveState.criteriaStatus || {}).filter(([, v]) => !v.triggered).map(([k]) => k)}
+                />
                 <Card className="p-0 overflow-hidden">
                   <button
                     onClick={() => setCriteriaExpanded(!criteriaExpanded)}
@@ -1198,7 +1181,7 @@ export default function MonitorPage() {
                       <span
                         className={`text-lg font-bold ${getScoreColor(liveState.score || 100)}`}
                       >
-                        {liveState.score || 100}%
+                        {liveState.score || 100}
                       </span>
                       <svg
                         className={`w-5 h-5 text-navy-400 transition-transform ${criteriaExpanded ? "rotate-180" : ""}`}
@@ -1217,15 +1200,10 @@ export default function MonitorPage() {
                   </button>
                   {criteriaExpanded && (
                     <div className="divide-y divide-navy-100">
-                      {[
-                        "Opening",
-                        "Probing",
-                        "Qualification",
-                        "Compliance",
-                      ].map((category) => (
+                      {ALL_CATEGORIES.map((category) => (
                         <div key={category}>
                           <div
-                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wide border-l-4 ${CATEGORY_COLORS[category]}`}
+                            className="px-4 py-2 text-xs font-bold uppercase tracking-wide border-l-4 border-l-navy-800 bg-navy-50/30"
                           >
                             {category}
                           </div>
@@ -1247,7 +1225,7 @@ export default function MonitorPage() {
                                       ? "bg-green-500 text-white"
                                       : isFail
                                         ? "bg-red-500 text-white"
-                                        : "bg-slate-200"
+                                        : "bg-navy-200"
                                   }`}
                                 >
                                   {isPass ? (
@@ -1279,14 +1257,14 @@ export default function MonitorPage() {
                                       />
                                     </svg>
                                   ) : (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-navy-400" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p
                                     className={`text-sm ${isFail ? "text-red-700 font-medium" : isPass ? "text-green-700" : "text-navy-600"}`}
                                   >
-                                    {criterion.label}
+                                    {criterion.name}
                                   </p>
                                 </div>
                                 {criterion.ztp && (
@@ -1393,21 +1371,19 @@ export default function MonitorPage() {
                       <span
                         className={`font-bold ${getScoreColor(liveState.score || 100)}`}
                       >
-                        {liveState.score || 100}%
+                        {liveState.score || 100}
                       </span>
                     </div>
                     <div className="h-3 bg-navy-100 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          (liveState.score || 100) >= 85
+                          (liveState.score || 100) >= 70
                             ? "bg-green-500"
-                            : (liveState.score || 100) >= 70
-                              ? "bg-blue-500"
-                              : (liveState.score || 100) >= 50
-                                ? "bg-amber-500"
-                                : "bg-red-500"
+                            : (liveState.score || 100) >= 40
+                              ? "bg-navy-600"
+                              : "bg-red-500"
                         }`}
-                        style={{ width: `${liveState.score || 100}%` }}
+                        style={{ width: `${liveState.score || 100}` }}
                       />
                     </div>
                     <div className="flex justify-between text-xs text-navy-500">
@@ -1418,7 +1394,7 @@ export default function MonitorPage() {
                             (s) => s.triggered,
                           ).length
                         }{" "}
-                        / {CRITERIA_ORDER.length}
+                        / {RUBRIC_CRITERIA.length}
                       </span>
                     </div>
                   </div>
