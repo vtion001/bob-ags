@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
+import Select from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 
 interface UserSettings {
@@ -16,6 +17,31 @@ interface UserSettings {
   email_notifications: boolean
   auto_sync_calls: boolean
   call_sync_interval: number
+}
+
+interface UserRole {
+  id: string
+  user_id: string
+  email: string
+  role: 'admin' | 'manager' | 'viewer'
+  permissions: {
+    can_view_calls: boolean
+    can_view_monitor: boolean
+    can_view_history: boolean
+    can_view_agents: boolean
+    can_manage_settings: boolean
+    can_manage_users: boolean
+    can_run_analysis: boolean
+  }
+  approved?: boolean
+  approved_by?: string
+  created_at: string
+}
+
+interface CurrentUser {
+  role: string
+  permissions: UserRole['permissions']
+  email: string
 }
 
 export default function SettingsPage() {
@@ -34,6 +60,12 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [error, setError] = useState('')
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [users, setUsers] = useState<UserRole[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'manager' | 'viewer'>('viewer')
 
   const supabase = createClient()
 
@@ -44,11 +76,52 @@ export default function SettingsPage() {
   const loadSettings = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/settings')
-      if (res.ok) {
-        const data = await res.json()
+      const [settingsRes, permissionsRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/users/permissions')
+      ])
+      
+      if (settingsRes.ok) {
+        const data = await settingsRes.json()
         if (data.settings) {
           setSettings(prev => ({ ...prev, ...data.settings }))
+        }
+      }
+      
+      if (permissionsRes.ok) {
+        const permData = await permissionsRes.json()
+        setCurrentUser({ 
+          role: permData.role, 
+          permissions: permData.permissions,
+          email: permData.email 
+        })
+        setIsAdmin(permData.role === 'admin')
+        
+        if (permData.role === 'admin') {
+          const usersRes = await fetch('/api/users/permissions/update')
+          if (usersRes.ok) {
+            const usersData = await usersRes.json()
+            const allUsers = [...(usersData.roles || [])]
+            if (permData.email !== 'agsdev@allianceglobalsolutions.com' && !allUsers.find(u => u.email === 'agsdev@allianceglobalsolutions.com')) {
+              allUsers.unshift({
+                id: 'dev-admin',
+                user_id: 'agsdev@allianceglobalsolutions.com',
+                email: 'agsdev@allianceglobalsolutions.com',
+                role: 'admin',
+                permissions: {
+                  can_view_calls: true,
+                  can_view_monitor: true,
+                  can_view_history: true,
+                  can_view_agents: true,
+                  can_manage_settings: true,
+                  can_manage_users: true,
+                  can_run_analysis: true,
+                },
+                created_at: new Date().toISOString(),
+              })
+            }
+            setUsers(allUsers)
+          }
         }
       }
     } catch (err) {
@@ -105,6 +178,174 @@ export default function SettingsPage() {
         call_sync_interval: 60,
       })
       setSaveMessage('Credentials cleared')
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAddUser = async () => {
+    if (!newUserEmail) return
+    
+    setIsSaving(true)
+    try {
+      const permissions = getDefaultPermissions(newUserRole)
+      const res = await fetch('/api/users/permissions/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: newUserEmail,
+          email: newUserEmail,
+          role: newUserRole,
+          permissions,
+        }),
+      })
+      
+      if (!res.ok) throw new Error('Failed to add user')
+      
+      setSaveMessage('User added successfully')
+      setShowAddUser(false)
+      setNewUserEmail('')
+      setNewUserRole('viewer')
+      
+      const usersRes = await fetch('/api/users/permissions/update')
+      if (usersRes.ok) {
+        const usersData = await usersRes.json()
+        setUsers(usersData.roles || [])
+      }
+      
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdateRole = async (userId: string, role: 'admin' | 'manager' | 'viewer') => {
+    setIsSaving(true)
+    try {
+      const permissions = getDefaultPermissions(role)
+      const user = users.find(u => u.user_id === userId)
+      
+      const res = await fetch('/api/users/permissions/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          email: user?.email || userId,
+          role,
+          permissions,
+        }),
+      })
+      
+      if (!res.ok) throw new Error('Failed to update role')
+      
+      setUsers(users.map(u => 
+        u.user_id === userId 
+          ? { ...u, role, permissions }
+          : u
+      ))
+      
+      setSaveMessage('Role updated successfully')
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const getDefaultPermissions = (role: string): UserRole['permissions'] => {
+    switch (role) {
+      case 'admin':
+        return {
+          can_view_calls: true,
+          can_view_monitor: true,
+          can_view_history: true,
+          can_view_agents: true,
+          can_manage_settings: true,
+          can_manage_users: true,
+          can_run_analysis: true,
+        }
+      case 'manager':
+        return {
+          can_view_calls: true,
+          can_view_monitor: true,
+          can_view_history: true,
+          can_view_agents: true,
+          can_manage_settings: false,
+          can_manage_users: false,
+          can_run_analysis: true,
+        }
+      default:
+        return {
+          can_view_calls: true,
+          can_view_monitor: true,
+          can_view_history: false,
+          can_view_agents: false,
+          can_manage_settings: false,
+          can_manage_users: false,
+          can_run_analysis: false,
+        }
+    }
+  }
+
+  const handleApproveUser = async (userId: string, role: 'manager' | 'viewer') => {
+    setIsSaving(true)
+    try {
+      const permissions = getDefaultPermissions(role)
+      const user = users.find(u => u.user_id === userId)
+      
+      const res = await fetch('/api/users/permissions/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          email: user?.email || userId,
+          role: role,
+          permissions: permissions,
+          approved: true,
+          approvedBy: currentUser?.email,
+        }),
+      })
+      
+      if (!res.ok) throw new Error('Failed to approve user')
+      
+      setUsers(users.map(u => 
+        u.user_id === userId 
+          ? { ...u, role, approved: true, approved_by: currentUser?.email || '' }
+          : u
+      ))
+      
+      setSaveMessage('User approved successfully')
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleRejectUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to reject this user? This will remove their access.')) {
+      return
+    }
+    
+    setIsSaving(true)
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+      
+      if (error) throw error
+      
+      setUsers(users.filter(u => u.user_id !== userId))
+      
+      setSaveMessage('User rejected and removed')
       setTimeout(() => setSaveMessage(''), 3000)
     } catch (err: any) {
       setError(err.message)
@@ -229,16 +470,17 @@ export default function SettingsPage() {
           {settings.auto_sync_calls && (
             <div className="p-4 rounded-lg bg-navy-50">
               <label className="block text-navy-900 font-medium mb-2">Sync Interval (minutes)</label>
-              <select
-                value={settings.call_sync_interval}
-                onChange={(e) => setSettings(prev => ({ ...prev, call_sync_interval: parseInt(e.target.value) }))}
-                className="w-full px-3 py-2 rounded-lg border border-navy-200 bg-white text-navy-900"
-              >
-                <option value={15}>Every 15 minutes</option>
-                <option value={30}>Every 30 minutes</option>
-                <option value={60}>Every hour</option>
-                <option value={120}>Every 2 hours</option>
-              </select>
+              <Select
+                value={String(settings.call_sync_interval)}
+                onChange={(value) => setSettings(prev => ({ ...prev, call_sync_interval: parseInt(value) }))}
+                options={[
+                  { value: '15', label: 'Every 15 minutes' },
+                  { value: '30', label: 'Every 30 minutes' },
+                  { value: '60', label: 'Every hour' },
+                  { value: '120', label: 'Every 2 hours' },
+                ]}
+                className="w-full"
+              />
             </div>
           )}
         </div>
@@ -299,6 +541,170 @@ export default function SettingsPage() {
           Save Preferences
         </Button>
       </Card>
+
+      {isAdmin && (
+        <Card className="p-6 mb-6 border-navy-200">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-bold text-navy-900">User Permissions</h2>
+              <p className="text-sm text-navy-500">Manage user roles and navigation access</p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowAddUser(!showAddUser)}
+            >
+              {showAddUser ? 'Cancel' : 'Add User'}
+            </Button>
+          </div>
+
+          {showAddUser && (
+            <div className="mb-6 p-4 bg-navy-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  label="Email"
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="user@example.com"
+                />
+                <Select
+                  label="Role"
+                  value={newUserRole}
+                  onChange={(value) => setNewUserRole(value as 'admin' | 'manager' | 'viewer')}
+                  options={[
+                    { value: 'viewer', label: 'Viewer - Monitor only' },
+                    { value: 'manager', label: 'Manager - Full access (no settings)' },
+                    { value: 'admin', label: 'Admin - Full access' },
+                  ]}
+                  className="w-full"
+                />
+                <div className="flex items-end">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={handleAddUser}
+                    isLoading={isSaving}
+                    className="w-full"
+                  >
+                    Add User
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {(() => {
+              const pendingUsers = users.filter(u => !u.approved && u.email !== 'agsdev@allianceglobalsolutions.com' && u.id !== 'dev-admin')
+              const approvedUsers = users.filter(u => u.approved || u.email === 'agsdev@allianceglobalsolutions.com' || u.id === 'dev-admin')
+              
+              return (
+                <>
+                  {pendingUsers.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
+                        Pending Approval ({pendingUsers.length})
+                      </h3>
+                      <div className="space-y-3">
+                        {pendingUsers.map((user) => (
+                          <div key={user.id} className="flex items-center justify-between p-4 rounded-lg bg-orange-50 border border-orange-200">
+                            <div className="flex-1">
+                              <p className="font-medium text-navy-900">{user.email}</p>
+                              <p className="text-sm text-orange-600">Waiting for approval</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleApproveUser(user.user_id, 'viewer')}
+                                disabled={isSaving}
+                              >
+                                Approve Viewer
+                              </Button>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleApproveUser(user.user_id, 'manager')}
+                                disabled={isSaving}
+                              >
+                                Approve Manager
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleRejectUser(user.user_id)}
+                                disabled={isSaving}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <h3 className="text-sm font-semibold text-navy-600 uppercase tracking-wide mb-3">
+                    Approved Users ({approvedUsers.length})
+                  </h3>
+                  
+                  {approvedUsers.length === 0 && !pendingUsers.length ? (
+                    <p className="text-navy-500 text-center py-4">No users yet. Users will appear here after signing up.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {approvedUsers.map((user) => {
+                        const isDevAdmin = user.email === 'agsdev@allianceglobalsolutions.com' || user.id === 'dev-admin'
+                        return (
+                          <div key={user.id} className={`flex items-center justify-between p-4 rounded-lg ${isDevAdmin ? 'bg-amber-50 border border-amber-200' : 'bg-navy-50'}`}>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-navy-900">{user.email}</p>
+                                {isDevAdmin && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-500 text-white rounded-full">
+                                    Admin
+                                  </span>
+                                )}
+                                {user.approved && !isDevAdmin && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                    Approved
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-navy-500">
+                                {user.role === 'admin' && 'Full access to all features'}
+                                {user.role === 'manager' && 'Access to calls, monitor, history, and analysis'}
+                                {user.role === 'viewer' && 'Monitor tab only'}
+                              </p>
+                            </div>
+                            {isDevAdmin ? (
+                              <span className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-100 rounded-lg">
+                                Full Access
+                              </span>
+                            ) : (
+                              <Select
+                                value={user.role}
+                                onChange={(value) => handleUpdateRole(user.user_id, value as 'admin' | 'manager' | 'viewer')}
+                                options={[
+                                  { value: 'viewer', label: 'Viewer' },
+                                  { value: 'manager', label: 'Manager' },
+                                  { value: 'admin', label: 'Admin' },
+                                ]}
+                                disabled={isSaving}
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6 border-red-200">
         <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>

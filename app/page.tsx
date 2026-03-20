@@ -41,10 +41,13 @@ export default function LoginPage() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              signup_type: 'email',
+            }
           },
         })
         if (error) throw error
-        setMessage('Check your email for the confirmation link!')
+        setMessage('Check your email for the confirmation link! Once confirmed, your account will be activated by an admin.')
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -68,7 +71,11 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            prompt: 'consent',
+            access_type: 'offline',
+          }
         },
       })
       if (error) throw error

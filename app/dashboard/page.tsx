@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import StatsCard from '@/components/StatsCard'
 import CallTable from '@/components/CallTable'
+import Select, { SelectOption } from '@/components/ui/select'
 import { Call } from '@/lib/ctm'
 
 interface Agent {
@@ -135,17 +136,18 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
       const hours = getHoursParam()
-      let url = `/api/ctm/dashboard/stats?limit=100&hours=${hours}`
+      let url = `/api/calls?limit=500&hours=${hours}`
       
       if (selectedAgentUid !== null) {
         url += `&agentId=${selectedAgentUid}`
       }
       
+      // Fetch from cache first - this returns immediately with cached data
       const res = await fetch(url)
       if (!res.ok) throw new Error('Failed to fetch data')
       const data = await res.json()
       
-      let filteredCalls = (data.recentCalls || []).filter(
+      let filteredCalls = (data.calls || []).filter(
         (call: Call) => call.direction === 'inbound'
       )
       
@@ -163,15 +165,106 @@ export default function DashboardPage() {
       }
       
       const inboundTotal = filteredCalls.length
+      const analyzedCount = filteredCalls.filter((c: Call) => c.score || c.analysis).length
+      const hotLeadsCount = filteredCalls.filter((c: Call) => c.analysis?.sentiment === 'positive' || (c.score && c.score >= 80)).length
+      const scoredCalls = filteredCalls.filter((c: Call) => c.score && c.score > 0)
+      const avgScore = scoredCalls.length > 0 
+        ? Math.round(scoredCalls.reduce((sum: number, c: Call) => sum + (c.score || 0), 0) / scoredCalls.length)
+        : 0
       
       setStats({
-        ...data.stats,
         totalCalls: inboundTotal,
+        analyzed: analyzedCount,
+        hotLeads: hotLeadsCount,
+        avgScore: avgScore.toString(),
+      })
+      setRecentCalls(filteredCalls.slice(0, 50))
+      setError(null)
+      
+      // Trigger background sync if the API indicates cache is stale
+      // This will only sync NEW calls (incremental), not re-fetch everything
+      if (data.needsSync) {
+        syncCallsInBackground()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    }
+  }
+
+  const syncCallsInBackground = async () => {
+    try {
+      // Incremental sync - only fetches new calls since last cached call
+      let url = '/api/calls?hours=2160'
+      if (selectedAgentUid !== null) {
+        url += `&agentId=${selectedAgentUid}`
+      }
+      // Fire and forget - don't await, don't block UI
+      fetch(url, { method: 'POST' }).catch(err => {
+        console.error('Background sync failed:', err)
+      })
+    } catch (err) {
+      console.error('Background sync failed:', err)
+    }
+  }
+
+  const handleSyncNow = async () => {
+    setIsRefreshing(true)
+    try {
+      // Trigger a full sync
+      let syncUrl = '/api/calls?hours=2160'
+      if (selectedAgentUid !== null) {
+        syncUrl += `&agentId=${selectedAgentUid}`
+      }
+      const syncRes = await fetch(syncUrl, { method: 'POST' })
+      if (!syncRes.ok) throw new Error('Sync failed')
+      
+      // Then fetch fresh data with skipSync to avoid re-triggering background sync
+      const hours = getHoursParam()
+      let url = `/api/calls?limit=500&hours=${hours}&skipSync=true`
+      if (selectedAgentUid !== null) {
+        url += `&agentId=${selectedAgentUid}`
+      }
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch data')
+      const data = await res.json()
+      
+      let filteredCalls = (data.calls || []).filter(
+        (call: Call) => call.direction === 'inbound'
+      )
+      
+      if (selectedGroup !== 'all') {
+        const group = userGroups.find(g => g.id === selectedGroup)
+        if (group) {
+          filteredCalls = filteredCalls.filter((call: Call) => {
+            if (call.agent?.id) {
+              const agent = allAgents.find(a => a.id === call.agent?.id)
+              return agent ? group.userIds.includes(agent.uid) : false
+            }
+            return false
+          })
+        }
+      }
+      
+      const inboundTotal = filteredCalls.length
+      const analyzedCount = filteredCalls.filter((c: Call) => c.score || c.analysis).length
+      const hotLeadsCount = filteredCalls.filter((c: Call) => c.analysis?.sentiment === 'positive' || (c.score && c.score >= 80)).length
+      const scoredCalls = filteredCalls.filter((c: Call) => c.score && c.score > 0)
+      const avgScore = scoredCalls.length > 0 
+        ? Math.round(scoredCalls.reduce((sum: number, c: Call) => sum + (c.score || 0), 0) / scoredCalls.length)
+        : 0
+      
+      setStats({
+        totalCalls: inboundTotal,
+        analyzed: analyzedCount,
+        hotLeads: hotLeadsCount,
+        avgScore: avgScore.toString(),
       })
       setRecentCalls(filteredCalls.slice(0, 50))
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
@@ -189,27 +282,21 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [autoRefresh, selectedAgentUid, selectedGroup, timeRange])
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await fetchData()
-    setIsRefreshing(false)
-  }
-
   const toggleAutoRefresh = () => {
     setAutoRefresh(!autoRefresh)
   }
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true)
-    setAnalyzeProgress('Fetching calls...')
+    setAnalyzeProgress('Fetching calls from cache...')
     
     try {
-      const callsRes = await fetch('/api/ctm/calls?limit=50&hours=168&direction=inbound')
-      if (!callsRes.ok) throw new Error('Failed to fetch calls')
+      const callsRes = await fetch('/api/calls?limit=500&hours=168&skipSync=true')
+      if (!callsRes.ok) throw new Error('Failed to fetch calls from cache')
       const callsData = await callsRes.json()
       
       const callsWithoutAnalysis = (callsData.calls || []).filter(
-        (c: Call) => c.direction === 'inbound' && !c.score && !c.analysis
+        (c: Call & { ctm_call_id?: string }) => c.direction === 'inbound' && !c.score && c.ctm_call_id
       )
       
       if (callsWithoutAnalysis.length === 0) {
@@ -219,7 +306,7 @@ export default function DashboardPage() {
         return
       }
 
-      const callIds = callsWithoutAnalysis.map((c: Call) => c.id)
+      const callIds = callsWithoutAnalysis.map((c: Call & { ctm_call_id?: string }) => c.ctm_call_id!).filter(Boolean)
       setAnalyzeProgress(`Analyzing ${callIds.length} calls...`)
       
       const analyzeRes = await fetch('/api/ctm/calls/analyze', {
@@ -265,17 +352,18 @@ export default function DashboardPage() {
             <svg className="w-4 h-4 text-navy-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <select
+            <Select
               value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
-            >
-              <option value="24h">Last 24 Hours</option>
-              <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
-              <option value="90d">Last 90 Days</option>
-              <option value="custom">Custom Range</option>
-            </select>
+              onChange={(value) => setTimeRange(value as TimeRange)}
+              options={[
+                { value: '24h', label: 'Last 24 Hours' },
+                { value: '7d', label: 'Last 7 Days' },
+                { value: '30d', label: 'Last 30 Days' },
+                { value: '90d', label: 'Last 90 Days' },
+                { value: 'custom', label: 'Custom Range' },
+              ]}
+              className="w-40"
+            />
           </div>
           {timeRange === 'custom' && (
             <>
@@ -295,43 +383,43 @@ export default function DashboardPage() {
             </>
           )}
           {userGroups.length > 0 && (
-            <select
+            <Select
               value={selectedGroup}
-              onChange={(e) => handleGroupChange(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
-            >
-              <option value="all">All Groups</option>
-              {userGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleGroupChange}
+              options={[
+                { value: 'all', label: 'All Groups' },
+                ...userGroups.map((group) => ({
+                  value: group.id,
+                  label: group.name,
+                })),
+              ]}
+              className="w-40"
+            />
           )}
           {getAvailableAgents().length > 0 && (
-            <select
+            <Select
               value={selectedAgent}
-              onChange={(e) => handleAgentChange(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-navy-200 text-navy-900 focus:outline-none focus:border-navy-400"
-            >
-              <option value="all">All Agents</option>
-              {getAvailableAgents().map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleAgentChange}
+              options={[
+                { value: 'all', label: 'All Agents' },
+                ...getAvailableAgents().map((agent) => ({
+                  value: agent.id,
+                  label: agent.name,
+                })),
+              ]}
+              className="w-40"
+            />
           )}
           <Button
             variant="secondary"
             size="md"
-            onClick={handleRefresh}
+            onClick={handleSyncNow}
             isLoading={isRefreshing}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Refresh
+            Sync Now
           </Button>
           <button
             onClick={toggleAutoRefresh}

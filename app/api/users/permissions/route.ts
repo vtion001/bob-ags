@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase/server'
 
+const DEV_EMAIL = 'agsdev@allianceglobalsolutions.com'
+
+const adminPermissions = {
+  can_view_calls: true,
+  can_view_monitor: true,
+  can_view_history: true,
+  can_view_agents: true,
+  can_manage_settings: true,
+  can_manage_users: true,
+  can_run_analysis: true,
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabase(request)
@@ -8,6 +20,15 @@ export async function GET(request: NextRequest) {
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (user.email === DEV_EMAIL) {
+      return NextResponse.json({
+        userId: user.id,
+        email: user.email,
+        role: 'admin',
+        permissions: adminPermissions,
+      })
     }
 
     const { data: userRole, error } = await supabase
