@@ -38,10 +38,13 @@ export default function CallDetailPage() {
 
   const fetchCallDetails = async () => {
     try {
-      const res = await fetch(`/api/ctm/calls/${callId}`)
+      const res = await fetch(`/api/calls?ctmCallId=${callId}&skipSync=true`)
       if (!res.ok) throw new Error('Call not found')
       const data = await res.json()
-      return data.call
+      if (data.calls && data.calls.length > 0) {
+        return data.calls[0]
+      }
+      throw new Error('Call not found')
     } catch (err) {
       throw err
     }
@@ -102,8 +105,14 @@ export default function CallDetailPage() {
         const fetchedCall = await fetchCallDetails()
         setCall(fetchedCall)
         
-        if (fetchedCall.analysis) {
-          setAnalysis(fetchedCall.analysis)
+        if (fetchedCall.score !== undefined || fetchedCall.sentiment) {
+          setAnalysis({
+            score: fetchedCall.score || 0,
+            sentiment: fetchedCall.sentiment || 'neutral',
+            summary: fetchedCall.summary || '',
+            tags: fetchedCall.tags || [],
+            disposition: fetchedCall.disposition || ''
+          })
         }
 
         if (fetchedCall.transcript) {
@@ -112,7 +121,7 @@ export default function CallDetailPage() {
           setIsTranscribing(true)
           const transcribed = await handleTranscribe()
           
-          if (transcribed && !fetchedCall.analysis) {
+          if (transcribed && !fetchedCall.score && !fetchedCall.sentiment) {
             await handleAnalyze()
           }
         }

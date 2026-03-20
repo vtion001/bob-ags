@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { CTMClient } from '@/lib/ctm'
 
-async function transcribeWithAssemblyAI(audioUrl: string, auth: string): Promise<string> {
+async function transcribeWithAssemblyAI(audioUrl: string): Promise<string> {
   const apiKey = process.env.ASSEMBLYAI_API_KEY
   if (!apiKey) {
     throw new Error('AssemblyAI API key not configured')
@@ -16,6 +16,8 @@ async function transcribeWithAssemblyAI(audioUrl: string, auth: string): Promise
     },
     body: JSON.stringify({
       audio_url: audioUrl,
+      speech_model: 'universal-2',
+      language_code: 'en',
     }),
   })
 
@@ -26,7 +28,6 @@ async function transcribeWithAssemblyAI(audioUrl: string, auth: string): Promise
 
   const transcriptJob = await transcriptResponse.json()
   
-  // Poll for completion
   let result
   while (true) {
     const pollingRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptJob.id}`, {
@@ -39,7 +40,7 @@ async function transcribeWithAssemblyAI(audioUrl: string, auth: string): Promise
       throw new Error(`AssemblyAI transcription failed: ${result.error}`)
     }
     
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise(resolve => setTimeout(resolve, 2000))
   }
 
   return result.text || ''
@@ -75,11 +76,9 @@ export async function GET(
     console.log('Transcribing audio for call:', id)
     console.log('Audio URL:', call.recordingUrl)
 
-    // Try AssemblyAI first
     if (process.env.ASSEMBLYAI_API_KEY) {
       try {
-        const auth = Buffer.from(process.env.CTM_ACCESS_KEY + ':' + process.env.CTM_SECRET_KEY).toString('base64')
-        const transcript = await transcribeWithAssemblyAI(call.recordingUrl, auth)
+        const transcript = await transcribeWithAssemblyAI(call.recordingUrl)
         console.log('Transcription complete, length:', transcript.length)
         return NextResponse.json({ 
           transcript,
@@ -89,11 +88,14 @@ export async function GET(
         })
       } catch (assemblyErr) {
         console.error('AssemblyAI failed:', assemblyErr)
+        return NextResponse.json({ 
+          transcript: null, 
+          error: assemblyErr instanceof Error ? assemblyErr.message : 'Transcription failed',
+          callId: id 
+        })
       }
     }
 
-    // Fallback: try using the CTM transcript if available
-    console.log('Trying CTM native transcript...')
     const transcriptData = await ctmClient.calls.getCallTranscript(id)
     if (transcriptData) {
       return NextResponse.json({ 
