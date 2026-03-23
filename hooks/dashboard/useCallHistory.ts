@@ -196,7 +196,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
       const group = userGroups.find(g => g.id === groupFilter)
       if (group) {
         results = results.filter(call => {
-          const agent = agentProfiles.find(a => a.id === call.agent?.id?.toString())
+          const agent = agentProfiles.find(a => a.agent_id === call.agent?.id?.toString())
           if (!agent) return false
           return group.userIds.includes(Number(agent.agent_id))
         })
