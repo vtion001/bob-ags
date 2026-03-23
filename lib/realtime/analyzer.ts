@@ -64,7 +64,7 @@ export function analyzeTextForInsights(
 ): void {
   const lower = text.toLowerCase()
 
-  if (speaker === "Agent") {
+  if (speaker?.toLowerCase().includes('agent')) {
     for (const [id, config] of Object.entries(RUBRIC_KEYWORDS)) {
       const criteria = state.criteriaStatus?.[id]
       if (criteria?.triggered) continue

@@ -143,21 +143,24 @@ export class AssemblyAIRealtime {
       await this.transcriber.connect();
       console.log('[AAI] connect() returned, waiting for open event...');
 
-      // Wait for the 'open' event before starting audio
-      await new Promise<void>((resolve) => {
-        const checkReady = () => {
-          if (isReady) {
-            console.log('[AAI] Session ready, waiting 5 seconds for socket to be fully ready...');
-            setTimeout(() => {
-              console.log('[AAI] Starting audio processor now');
-              resolve();
-            }, 5000);
-          } else {
-            setTimeout(checkReady, 50);
-          }
-        };
-        checkReady();
-      });
+      // Wait for the 'open' event before starting audio, with 60s timeout
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          const checkReady = () => {
+            if (isReady) {
+              console.log('[AAI] Session ready, waiting 5 seconds for socket to be fully ready...');
+              setTimeout(() => {
+                console.log('[AAI] Starting audio processor now');
+                resolve();
+              }, 5000);
+            } else {
+              setTimeout(checkReady, 50);
+            }
+          };
+          checkReady();
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('AssemblyAI connection timeout after 60s')), 60000))
+      ]);
 
       this.microphone = this.audioContext.createMediaStreamSource(this.mediaStream);
 
