@@ -27,6 +27,7 @@ interface UseCallHistoryReturn {
   userGroups: UserGroup[]
   isLoading: boolean
   isRefreshing: boolean
+  isSyncing: boolean
   error: string | null
   searchQuery: string
   setSearchQuery: (q: string) => void
@@ -66,6 +67,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
   const [allCalls, setAllCalls] = useState<Call[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const lastSeenTimestamp = useRef<string | null>(null)
@@ -107,48 +109,56 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     })
   }, [])
 
-  const fetchFromCTM = useCallback(async (mode: 'initial' | 'poll' | 'refresh' = 'poll') => {
-    if (mode === 'refresh') setIsRefreshing(true)
-    else if (mode === 'initial') setIsLoading(true)
-    setError(null)
+  const fetchCalls = useCallback(async (options: { mode?: 'initial' | 'poll' | 'refresh'; blocking?: boolean } = {}) => {
+    const { mode = 'poll', blocking = false } = options
+
+    if (blocking) {
+      setIsRefreshing(true)
+      setError(null)
+    } else if (mode === 'poll') {
+      setIsSyncing(true)
+      setError(null)
+    } else {
+      setIsLoading(true)
+      setError(null)
+    }
 
     try {
-      let url = mode === 'initial'
-        ? `/api/calls?limit=200&hours=1`
-        : `/api/calls?mode=delta&limit=200`
-      if (agentIdFilter) url += `&agentId=${encodeURIComponent(agentIdFilter)}`
-
-      const res = await fetch(url)
-      if (!res.ok) {
-        if (res.status === 401) throw new Error('Please log in to view calls')
-        throw new Error('Failed to fetch calls')
-      }
-
-      const data = await res.json()
-      const incoming: Call[] = dedupeCalls(data.calls || [])
+      const agentParam = agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''
 
       if (mode === 'initial') {
-        if (data.fromCache && incoming.length > 0) {
-          setAllCalls(incoming)
-          const pollRes = await fetch(`/api/calls?mode=delta&limit=200${agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''}`)
-          if (pollRes.ok) {
-            const pollData = await pollRes.json()
-            const newCalls: Call[] = dedupeCalls(pollData.calls || [])
-            if (newCalls.length > 0) mergeNewCalls(newCalls)
-          }
-        } else {
-          const [deltaRes, fullRes] = await Promise.all([
-            fetch(`/api/calls?mode=delta&limit=200${agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''}`),
-            fetch(`/api/calls?limit=200&hours=168${agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''}`),
-          ])
-          const deltaData = deltaRes.ok ? await deltaRes.json() : null
-          const fullData = fullRes.ok ? await fullRes.json() : null
-          const deltaCalls: Call[] = dedupeCalls(deltaData?.calls || [])
-          const fullCalls: Call[] = dedupeCalls(fullData?.calls || [])
-          if (deltaCalls.length > 0) setAllCalls(deltaCalls)
-          else if (fullCalls.length > 0) setAllCalls(fullCalls)
+        const [cacheRes, deltaRes, fullRes] = await Promise.all([
+          fetch(`/api/calls?cacheOnly=true&hours=168&limit=200${agentParam}`),
+          fetch(`/api/calls?mode=delta&limit=200${agentParam}`),
+          fetch(`/api/calls?limit=200&hours=168${agentParam}`),
+        ])
+
+        const [cacheData, deltaData, fullData] = await Promise.all([
+          cacheRes.ok ? cacheRes.json() : null,
+          deltaRes.ok ? deltaRes.json() : null,
+          fullRes.ok ? fullRes.json() : null,
+        ])
+
+        const cacheCalls: Call[] = dedupeCalls(cacheData?.calls || [])
+        const deltaCalls: Call[] = dedupeCalls(deltaData?.calls || [])
+        const fullCalls: Call[] = dedupeCalls(fullData?.calls || [])
+
+        if (cacheCalls.length > 0) {
+          setAllCalls(cacheCalls)
+          if (deltaCalls.length > 0) mergeNewCalls(deltaCalls)
+        } else if (fullCalls.length > 0) {
+          setAllCalls(fullCalls)
+        } else if (deltaCalls.length > 0) {
+          setAllCalls(deltaCalls)
         }
       } else {
+        const url = mode === 'refresh'
+          ? `/api/calls?mode=delta&limit=200${agentParam}`
+          : `/api/calls?mode=delta&limit=200${agentParam}`
+        const res = await fetch(url)
+        if (!res.ok) throw new Error('Failed to fetch calls')
+        const data = await res.json()
+        const incoming: Call[] = dedupeCalls(data.calls || [])
         if (incoming.length > 0) mergeNewCalls(incoming)
       }
     } catch (err) {
@@ -156,17 +166,18 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
+      setIsSyncing(false)
     }
   }, [agentIdFilter, mergeNewCalls])
 
   useEffect(() => {
-    fetchFromCTM('initial')
-  }, [fetchFromCTM])
+    fetchCalls({ mode: 'initial' })
+  }, [fetchCalls])
 
   useEffect(() => {
-    const interval = setInterval(() => fetchFromCTM('poll'), 5 * 60 * 1000)
+    const interval = setInterval(() => fetchCalls({ mode: 'poll' }), 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [fetchFromCTM])
+  }, [fetchCalls])
 
   useEffect(() => {
     let results = [...allCalls]
@@ -214,8 +225,8 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
   }, [allCalls, searchQuery, analyzedOnly, groupFilter, scoreFilter, dateRange, userGroups, agentProfiles])
 
   const handleRefresh = useCallback(() => {
-    fetchFromCTM('refresh')
-  }, [fetchFromCTM])
+    fetchCalls({ mode: 'refresh', blocking: true })
+  }, [fetchCalls])
 
   const handleExport = useCallback(() => {
     const csv = [
@@ -246,6 +257,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     userGroups,
     isLoading,
     isRefreshing,
+    isSyncing,
     error,
     searchQuery,
     setSearchQuery,

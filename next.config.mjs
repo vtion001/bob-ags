@@ -20,6 +20,34 @@ const nextConfig = {
   turbopack: {
     root: '/Users/archerterminez/Desktop/REPOSITORY/bob-ags',
   },
+  async headers() {
+    return [
+      {
+        source: '/api/ctm/agents',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=600' },
+        ],
+      },
+      {
+        source: '/api/ctm/agents/groups',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=600' },
+        ],
+      },
+      {
+        source: '/api/users/permissions',
+        headers: [
+          { key: 'Cache-Control', value: 'private, s-maxage=60, stale-while-revalidate=300' },
+        ],
+      },
+      {
+        source: '/api/auth/session',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-cache' },
+        ],
+      },
+    ]
+  },
 }
 
 export default nextConfig

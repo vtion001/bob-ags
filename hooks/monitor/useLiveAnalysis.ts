@@ -23,7 +23,12 @@ interface UseLiveAnalysisReturn {
 
 export function useLiveAnalysis(options: UseLiveAnalysisOptions = {}): UseLiveAnalysisReturn {
   const { onError, onClose } = options;
-  
+
+  const onErrorRef = useRef(onError);
+  const onCloseRef = useRef(onClose);
+  onErrorRef.current = onError;
+  onCloseRef.current = onClose;
+
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [liveState, setLiveState] = useState<Partial<LiveCallState>>({
@@ -39,86 +44,94 @@ export function useLiveAnalysis(options: UseLiveAnalysisOptions = {}): UseLiveAn
   });
   const [recentInsights, setRecentInsights] = useState<RealtimeInsight[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   const realtimeRef = useRef<AssemblyAIRealtime | null>(null);
   const durationRef = useRef<NodeJS.Timeout | null>(null);
+  const startingRef = useRef(false);
 
   const startMonitoring = useCallback(async (callId?: string) => {
-    const apiKey = process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY;
-
-    if (!apiKey) {
-      const errMsg = "AssemblyAI API key not configured. Check NEXT_PUBLIC_ASSEMBLYAI_API_KEY in your environment variables.";
-      setError(errMsg);
-      onError?.(errMsg);
-      return;
-    }
-
-    setError(null);
-    setIsMonitoring(true);
-    setIsRecording(false);
-    setLiveState({
-      isConnected: false,
-      isRecording: false,
-      duration: 0,
-      transcript: [],
-      insights: [],
-      sentiment: "neutral",
-      sentimentScore: 50,
-      criteriaStatus: {},
-      score: 100,
-    });
-    setRecentInsights([]);
-
-    const rt = new AssemblyAIRealtime({
-      apiKey,
-      onTranscript: (t: RealtimeTranscript) => {
-        setLiveState((prev) => ({
-          ...prev,
-          transcript: [...(prev.transcript || []), t],
-        }));
-      },
-      onInsight: (i: RealtimeInsight) => {
-        setRecentInsights((prev) => [i, ...prev].slice(0, 50));
-        setLiveState((prev) => ({
-          ...prev,
-          insights: [i, ...(prev.insights || [])].slice(0, 50),
-        }));
-      },
-      onStateChange: (s: Partial<LiveCallState>) => {
-        setLiveState((prev) => ({ ...prev, ...s }));
-      },
-      onError: (e: Error) => {
-        setError(e.message);
-        setIsRecording(false);
-        setIsMonitoring(false);
-        onError?.(e.message);
-      },
-      onClose: () => {
-        setIsRecording(false);
-        setIsMonitoring(false);
-        onClose?.();
-      },
-    });
-
-    realtimeRef.current = rt;
+    if (startingRef.current) return;
+    startingRef.current = true;
 
     try {
-      await rt.connect(callId || undefined);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : "Failed to start live analysis. Please check your microphone and API key.";
-      setError(errMsg);
-      setIsMonitoring(false);
-      setIsRecording(false);
-      onError?.(errMsg);
-    }
+      const apiKey = process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY;
 
-    durationRef.current = setInterval(() => {
-      setLiveState((prev) => ({
-        ...prev,
-        duration: (prev.duration || 0) + 1,
-      }));
-    }, 1000);
-  }, [onError, onClose]);
+      if (!apiKey) {
+        const errMsg = "AssemblyAI API key not configured. Check NEXT_PUBLIC_ASSEMBLYAI_API_KEY in your environment variables.";
+        setError(errMsg);
+        onErrorRef.current?.(errMsg);
+        return;
+      }
+
+      setError(null);
+      setIsMonitoring(true);
+      setIsRecording(false);
+      setLiveState({
+        isConnected: false,
+        isRecording: false,
+        duration: 0,
+        transcript: [],
+        insights: [],
+        sentiment: "neutral",
+        sentimentScore: 50,
+        criteriaStatus: {},
+        score: 100,
+      });
+      setRecentInsights([]);
+
+      const rt = new AssemblyAIRealtime({
+        apiKey,
+        onTranscript: (t: RealtimeTranscript) => {
+          setLiveState((prev) => ({
+            ...prev,
+            transcript: [...(prev.transcript || []), t],
+          }));
+        },
+        onInsight: (i: RealtimeInsight) => {
+          setRecentInsights((prev) => [i, ...prev].slice(0, 50));
+          setLiveState((prev) => ({
+            ...prev,
+            insights: [i, ...(prev.insights || [])].slice(0, 50),
+          }));
+        },
+        onStateChange: (s: Partial<LiveCallState>) => {
+          setLiveState((prev) => ({ ...prev, ...s }));
+        },
+        onError: (e: Error) => {
+          setError(e.message);
+          setIsRecording(false);
+          setIsMonitoring(false);
+          onErrorRef.current?.(e.message);
+        },
+        onClose: () => {
+          setIsRecording(false);
+          setIsMonitoring(false);
+          onCloseRef.current?.();
+        },
+      });
+
+      realtimeRef.current = rt;
+
+      try {
+        await rt.connect(callId || undefined);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Failed to start live analysis. Please check your microphone and API key.";
+        setError(errMsg);
+        setIsMonitoring(false);
+        setIsRecording(false);
+        onErrorRef.current?.(errMsg);
+      }
+
+      durationRef.current = setInterval(() => {
+        setLiveState((prev) => ({
+          ...prev,
+          duration: (prev.duration || 0) + 1,
+        }));
+      }, 1000);
+    } finally {
+      startingRef.current = false;
+    }
+  }, []);
 
   const stopMonitoring = useCallback(() => {
     if (realtimeRef.current) {
