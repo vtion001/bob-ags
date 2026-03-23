@@ -140,19 +140,9 @@ export function useLiveAIInsights(options: UseLiveAIInsightsOptions = {}): UseLi
     lastAnalysisRef.current = Date.now()
 
     try {
-      const apiKey = process.env.OPENROUTER_API_KEY
-      if (!apiKey) {
-        throw new Error('OpenRouter API key not configured')
-      }
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('/api/openrouter', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'BOB Live AI Insights',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'anthropic/claude-3-haiku',
           messages: [

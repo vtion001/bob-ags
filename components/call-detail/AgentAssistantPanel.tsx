@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card'
 import { type LiveAIInsight } from '@/hooks/monitor/useLiveAIInsights'
 
 interface AgentAssistantPanelProps {
-  aiInsights: LiveAIInsight[]
+  aiInsights?: LiveAIInsight[]
   transcript?: { speaker: string; text: string }[]
   callerName?: string
   isCrisis?: boolean
@@ -34,9 +34,10 @@ export default function AgentAssistantPanel({
   }, [transcript])
 
   const prioritizedInsights = useMemo(() => {
-    const high = aiInsights.filter(i => i.priority === 'high')
-    const medium = aiInsights.filter(i => i.priority === 'medium')
-    const low = aiInsights.filter(i => i.priority === 'low')
+    const insights = aiInsights || []
+    const high = insights.filter(i => i.priority === 'high')
+    const medium = insights.filter(i => i.priority === 'medium')
+    const low = insights.filter(i => i.priority === 'low')
     return [...high, ...medium, ...low].slice(0, 8)
   }, [aiInsights])
 
