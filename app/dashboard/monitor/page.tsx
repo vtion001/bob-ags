@@ -6,8 +6,10 @@ import Card from "@/components/ui/Card"
 import { Call } from "@/lib/ctm"
 import { RUBRIC_CRITERIA } from "@/lib/ai"
 import { useMonitorPage } from "@/hooks/monitor/useMonitorPage"
+import { useLiveAIInsights } from "@/hooks/monitor/useLiveAIInsights"
 import AgentAssistantPanel from "@/components/call-detail/AgentAssistantPanel"
 import NotesDispositionPanel from "@/components/call-detail/NotesDispositionPanel"
+import LiveAIInsightsPanel from "@/components/monitor/LiveAIInsightsPanel"
 import {
   ActiveCallsList,
   CallDetailsCard,
@@ -44,9 +46,32 @@ export default function MonitorPage() {
     isCrisis,
   } = useMonitorPage()
 
+  const {
+    aiInsights,
+    suggestedDisposition,
+    isAnalyzing: isAIAnalyzing,
+    analyzeNow,
+    resetInsights,
+  } = useLiveAIInsights()
+
   const byCategory = (category: string) => {
     return RUBRIC_CRITERIA.filter((c) => c.category === category)
   }
+
+  React.useEffect(() => {
+    if (!isMonitoring) {
+      resetInsights()
+      return
+    }
+    const transcript = liveState.transcript || []
+    if (transcript.length < 3) return
+    const text = transcript.map((t: any) => `${t.speaker}: ${t.text}`).join('\n')
+    analyzeNow(text, {
+      callerName: liveState.callerName,
+      insurance: liveState.insurance,
+      state: liveState.callerLocation,
+    })
+  }, [liveState.transcript, isMonitoring])
 
   return (
     <div className="min-h-screen bg-white">
@@ -208,16 +233,21 @@ export default function MonitorPage() {
                   />
                 </Card>
 
+                <Card className="p-0 overflow-hidden">
+                  <LiveAIInsightsPanel
+                    insights={aiInsights}
+                    suggestedDisposition={suggestedDisposition}
+                    isAnalyzing={isAIAnalyzing}
+                    expanded={true}
+                    onToggle={() => {}}
+                  />
+                </Card>
+
                 <AgentAssistantPanel
-                  missingCriteria={Object.entries(liveState.criteriaStatus || {}).filter(([, v]: [string, any]) => !v.triggered).map(([k]) => k)}
-                  currentContext={{
-                    insurance: liveState.insurance,
-                    state: liveState.callerLocation,
-                    substance: liveState.substance,
-                    callerName: liveState.callerName || selectedCallData?.name,
-                    isCrisis,
-                  }}
-                  lastTranscript={liveState.transcript?.[liveState.transcript.length - 1]?.text}
+                  aiInsights={aiInsights}
+                  transcript={liveState.transcript || []}
+                  callerName={liveState.callerName || selectedCallData?.name}
+                  isCrisis={isCrisis}
                 />
               </div>
 
@@ -233,6 +263,8 @@ export default function MonitorPage() {
                   }}
                   score={liveState.score || 0}
                   missingCriteria={Object.entries(liveState.criteriaStatus || {}).filter(([, v]: [string, any]) => !v.triggered).map(([k]) => k)}
+                  suggestedDisposition={suggestedDisposition}
+                  aiNotes={aiInsights.length > 0 ? aiInsights.map(i => `[${i.priority.toUpperCase()}] ${i.title}: ${i.message}`).join('\n') : null}
                 />
 
                 <CallDetailsCard
