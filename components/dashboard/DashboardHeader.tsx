@@ -1,6 +1,7 @@
 import React from 'react'
 import Select from '@/components/ui/select'
 import Button from '@/components/ui/Button'
+import GroupAgentFilter from '@/components/ui/group-agent-filter'
 import { Agent, UserGroup, TimeRange } from '@/hooks/dashboard/useDashboard'
 
 interface DashboardHeaderProps {
@@ -62,18 +63,19 @@ export default function DashboardHeader({
         />
 
         {isAdmin && userGroups.length > 0 && (
-          <Select
-            value={selectedGroup}
-            onChange={onGroupChange}
-            options={[
-              { value: 'all', label: 'All Groups' },
-              ...userGroups.map((g) => ({ value: g.id, label: g.name })),
-            ]}
-            className="w-40"
+          <GroupAgentFilter
+            userGroups={userGroups}
+            allAgents={allAgents}
+            selectedGroup={selectedGroup}
+            selectedAgent={selectedAgent}
+            onGroupChange={onGroupChange}
+            onAgentChange={onAgentChange}
+            getAgentUid={(agent) => agent.uid}
+            className="w-48"
           />
         )}
 
-        {isAdmin && (
+        {isAdmin && userGroups.length === 0 && (
           <Select
             value={selectedAgent}
             onChange={onAgentChange}

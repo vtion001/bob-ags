@@ -34,6 +34,7 @@ interface HistoryFiltersProps {
   onAnalyzedOnlyChange: (v: boolean) => void
   onRefresh: () => void
   isRefreshing: boolean
+  isSyncing?: boolean
 }
 
 export default function HistoryFilters({
@@ -53,9 +54,10 @@ export default function HistoryFilters({
   onAnalyzedOnlyChange,
   onRefresh,
   isRefreshing,
+  isSyncing,
 }: HistoryFiltersProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 mb-4">
         <Input
           label="Phone Number"
@@ -157,6 +159,13 @@ export default function HistoryFilters({
           </label>
         </div>
       </div>
+
+      {isSyncing && (
+        <div className="flex items-center gap-2 text-sm text-navy-500">
+          <div className="w-4 h-4 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
+          Syncing latest calls...
+        </div>
+      )}
     </div>
   )
 }
