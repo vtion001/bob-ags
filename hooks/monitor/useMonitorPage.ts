@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Call } from "@/lib/ctm"
 import { useLiveAnalysis } from "@/hooks/monitor"
 import { extractGroup, KNOWN_GROUPS } from "@/lib/monitor/helpers"
@@ -34,6 +34,12 @@ export function useMonitorPage(): UseMonitorPageReturn {
   const [callsError, setCallsError] = useState<string | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<string>("All")
   const [pollingInterval] = useState(5)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleClose = useCallback(() => {
+    setSelectedCallId(null)
+    setSelectedCallData(null)
+  }, [])
 
   const {
     isMonitoring,
@@ -45,7 +51,7 @@ export function useMonitorPage(): UseMonitorPageReturn {
     stopMonitoring,
   } = useLiveAnalysis({
     onError: setCallsError,
-    onClose: () => {},
+    onClose: handleClose,
   })
 
   const groups = useMemo(() => {
@@ -82,10 +88,23 @@ export function useMonitorPage(): UseMonitorPageReturn {
   }, [])
 
   useEffect(() => {
+    if (isMonitoring) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      return
+    }
     fetchActiveCalls()
-    const interval = setInterval(fetchActiveCalls, pollingInterval * 1000)
-    return () => clearInterval(interval)
-  }, [fetchActiveCalls, pollingInterval])
+    if (pollingRef.current) clearInterval(pollingRef.current)
+    pollingRef.current = setInterval(fetchActiveCalls, pollingInterval * 1000)
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [fetchActiveCalls, pollingInterval, isMonitoring])
 
   const handleStartMonitoring = useCallback(async () => {
     const callIdToUse = selectedCallId || selectedCallData?.id

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 
 export interface NavbarProps {
@@ -10,6 +11,7 @@ export interface NavbarProps {
 }
 
 export default function Navbar({ email, onLogout }: NavbarProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogout = async () => {
@@ -22,6 +24,10 @@ export default function Navbar({ email, onLogout }: NavbarProps) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSettingsClick = () => {
+    router.push('/dashboard/settings')
   }
 
   return (
@@ -45,7 +51,7 @@ export default function Navbar({ email, onLogout }: NavbarProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => window.location.href = '/dashboard/settings'}
+            onClick={handleSettingsClick}
             className="text-navy-600 hover:text-navy-900 hover:bg-navy-100"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

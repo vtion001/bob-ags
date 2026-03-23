@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Call } from '@/lib/ctm'
+import { useAuth } from '@/contexts/AuthContext'
 
 export interface Agent {
   id: string
@@ -26,7 +27,7 @@ export interface LiveCallsMeta {
   isAdmin: boolean
   assignedGroupId: string | null
   assignedAgentId: string | null
-  userEmail: string
+  userEmail: string | null
 }
 
 export type TimeRange = '24h' | '7d' | '30d' | '90d' | 'custom'
@@ -34,6 +35,7 @@ export type TimeRange = '24h' | '7d' | '30d' | '90d' | 'custom'
 interface UseDashboardReturn {
   isLoading: boolean
   isRefreshing: boolean
+  isSyncing: boolean
   isAnalyzing: boolean
   analyzeProgress: string
   autoRefresh: boolean
@@ -86,11 +88,10 @@ export function formatDateRange(range: TimeRange): string {
 export function useDashboard(): UseDashboardReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeProgress, setAnalyzeProgress] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [userGroups, setUserGroups] = useState<UserGroup[]>([])
-  const [allAgents, setAllAgents] = useState<Agent[]>([])
   const [selectedGroup, setSelectedGroup] = useState('all')
   const [selectedAgent, setSelectedAgent] = useState('all')
   const [selectedAgentUid, setSelectedAgentUid] = useState<number | null>(null)
@@ -106,43 +107,64 @@ export function useDashboard(): UseDashboardReturn {
   const [recentCalls, setRecentCalls] = useState<Call[]>([])
   const [error, setError] = useState<string | null>(null)
   const [liveMeta, setLiveMeta] = useState<LiveCallsMeta | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
   const pendingOverrideRef = useRef<{ groupId?: string; agentUid?: number } | null>(null)
 
+  const { email: userEmail, agents: allAgents, userGroups, isAdmin, isLoading: authLoading, isReady } = useAuth()
+
+  const fetchStats = useCallback(async (options: { blocking?: boolean; manualOverride?: { groupId?: string; agentUid?: number } } = {}) => {
+    const { blocking = false } = options
+    if (blocking) {
+      setIsRefreshing(true)
+      setError(null)
+    } else {
+      setIsSyncing(true)
+      setError(null)
+    }
+
+    try {
+      const hours = timeRange === 'custom' && customStartDate && customEndDate
+        ? Math.max(1, Math.ceil((new Date(customEndDate).getTime() - new Date(customStartDate).getTime()) / (1000 * 60 * 60)))
+        : getHoursFromRange(timeRange)
+      const agentParam = options.manualOverride?.agentUid
+        ? `&agentId=${options.manualOverride.agentUid}`
+        : selectedAgentUid ? `&agentId=${selectedAgentUid}` : ''
+
+      const [cacheRes, ctmRes] = await Promise.all([
+        fetch(`/api/ctm/dashboard/stats?cacheOnly=true&hours=${Math.min(hours, 2160)}${agentParam}`),
+        fetch(`/api/ctm/dashboard/stats?hours=${Math.min(hours, 2160)}${agentParam}`),
+      ])
+
+      const [cacheData, ctmData] = await Promise.all([cacheRes.json(), ctmRes.json()])
+
+      if (cacheData?.stats) setStats(cacheData.stats)
+      if (cacheData?.recentCalls) setRecentCalls(cacheData.recentCalls)
+      if (ctmData?.stats && !ctmData.fromCache) {
+        setStats(ctmData.stats)
+        setRecentCalls(ctmData.recentCalls || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch stats')
+    } finally {
+      if (blocking) setIsRefreshing(false)
+      else setIsSyncing(false)
+    }
+  }, [timeRange, customStartDate, customEndDate, selectedAgentUid])
+
   useEffect(() => {
+    if (!isReady || authLoading) return
+
     const init = async () => {
       try {
-        const [sessionRes, permsRes, agentsRes, settingsRes] = await Promise.all([
-          fetch('/api/auth/session'),
-          fetch('/api/users/permissions'),
-          fetch('/api/ctm/agents'),
-          fetch('/api/users/settings'),
-        ])
-
-        if (!sessionRes.ok) {
+        if (allAgents.length === 0) {
           window.location.href = '/'
           return
         }
 
-        const sessionData = await sessionRes.json()
-        setUserEmail(sessionData.email)
-
-        let isAdmin = false
+        const settingsRes = await fetch('/api/users/settings')
         let assignedGroupId: string | null = null
         let assignedAgentId: string | null = null
 
-        if (permsRes.ok) {
-          const permsData = await permsRes.json()
-          isAdmin = permsData.role === 'admin'
-        }
-
-        if (agentsRes.ok) {
-          const agentsData = await agentsRes.json()
-          setAllAgents(agentsData.agents || [])
-          setUserGroups(agentsData.userGroups || [])
-        }
-
-        if (settingsRes.ok && !isAdmin) {
+        if (settingsRes.ok) {
           const settingsData = await settingsRes.json()
           const settings = settingsData.settings || {}
           assignedGroupId = settings.ctm_user_group_id || null
@@ -164,7 +186,7 @@ export function useDashboard(): UseDashboardReturn {
           isAdmin,
           assignedGroupId,
           assignedAgentId,
-          userEmail: sessionData.email,
+          userEmail,
         })
       } catch {
         window.location.href = '/'
@@ -174,7 +196,12 @@ export function useDashboard(): UseDashboardReturn {
     }
 
     init()
-  }, [])
+  }, [isReady, authLoading, allAgents, userGroups, isAdmin, userEmail])
+
+  useEffect(() => {
+    if (isLoading) return
+    fetchStats()
+  }, [isLoading, fetchStats])
 
   const fetchCTMCalls = useCallback(async (manualOverride?: { groupId?: string; agentUid?: number }) => {
     try {
@@ -268,10 +295,10 @@ export function useDashboard(): UseDashboardReturn {
   useEffect(() => {
     if (!autoRefresh || isLoading) return
     const interval = setInterval(() => {
-      fetchCTMCalls()
+      fetchStats()
     }, 30000)
     return () => clearInterval(interval)
-  }, [autoRefresh, isLoading, fetchCTMCalls])
+  }, [autoRefresh, isLoading, fetchStats])
 
   const handleGroupChange = useCallback((groupId: string) => {
     setSelectedGroup(groupId)
@@ -289,18 +316,12 @@ export function useDashboard(): UseDashboardReturn {
       setSelectedGroup('all')
     }
     pendingOverrideRef.current = agent?.uid ? { agentUid: agent.uid } : null
-    fetchCTMCalls({ agentUid: agent?.uid || undefined })
-  }, [allAgents, fetchCTMCalls])
+    fetchStats({ manualOverride: { agentUid: agent?.uid } })
+  }, [allAgents, fetchStats])
 
   const handleSyncNow = useCallback(async () => {
-    setIsRefreshing(true)
-    pendingOverrideRef.current = null
-    try {
-      await fetchCTMCalls()
-    } finally {
-      setIsRefreshing(false)
-    }
-  }, [fetchCTMCalls])
+    await fetchStats({ blocking: true })
+  }, [fetchStats])
 
   const toggleAutoRefresh = useCallback(() => setAutoRefresh(!autoRefresh), [autoRefresh])
 
@@ -336,6 +357,7 @@ export function useDashboard(): UseDashboardReturn {
   return {
     isLoading,
     isRefreshing,
+    isSyncing,
     isAnalyzing,
     analyzeProgress,
     autoRefresh,
