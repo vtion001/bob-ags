@@ -14,6 +14,7 @@ export default function HistoryPage() {
     userGroups,
     isLoading,
     isRefreshing,
+    isSyncing,
     error,
     searchQuery,
     setSearchQuery,
@@ -31,19 +32,6 @@ export default function HistoryPage() {
     handleExport,
   } = useCallHistory()
 
-  if (isLoading) {
-    return (
-      <div className="p-6 lg:p-8">
-        <Card className="text-center py-12">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-navy-100 border-t-navy-900 rounded-full animate-spin" />
-            <p className="text-slate-400">Loading call history...</p>
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -51,7 +39,7 @@ export default function HistoryPage() {
         <p className="text-navy-500">Search and filter your call history</p>
       </div>
 
-      {error && (
+      {error && !isLoading && (
         <Card className="p-4 mb-6">
           <div className="flex items-center justify-between">
             <p className="text-red-600 font-medium">{error}</p>
@@ -65,7 +53,6 @@ export default function HistoryPage() {
       )}
 
       <Card className="p-6 mb-6">
-        <h3 className="text-lg font-bold text-navy-900 mb-4">Search & Filter</h3>
         <HistoryFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -83,6 +70,7 @@ export default function HistoryPage() {
           onAnalyzedOnlyChange={setAnalyzedOnly}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
+          isSyncing={isSyncing}
         />
       </Card>
 
