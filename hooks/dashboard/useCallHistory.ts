@@ -127,30 +127,29 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
       const agentParam = agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''
 
       if (mode === 'initial') {
-        const [cacheRes, deltaRes, fullRes] = await Promise.all([
-          fetch(`/api/calls?cacheOnly=true&hours=168&limit=200${agentParam}`),
-          fetch(`/api/calls?mode=delta&limit=200${agentParam}`),
-          fetch(`/api/calls?limit=200&hours=168${agentParam}`),
-        ])
-
-        const [cacheData, deltaData, fullData] = await Promise.all([
-          cacheRes.ok ? cacheRes.json() : null,
-          deltaRes.ok ? deltaRes.json() : null,
-          fullRes.ok ? fullRes.json() : null,
-        ])
-
+        const cacheRes = await fetch(`/api/calls?cacheOnly=true&hours=168&limit=200${agentParam}`)
+        const cacheData = cacheRes.ok ? await cacheRes.json() : null
         const cacheCalls: Call[] = dedupeCalls(cacheData?.calls || [])
-        const deltaCalls: Call[] = dedupeCalls(deltaData?.calls || [])
-        const fullCalls: Call[] = dedupeCalls(fullData?.calls || [])
 
         if (cacheCalls.length > 0) {
           setAllCalls(cacheCalls)
-          if (deltaCalls.length > 0) mergeNewCalls(deltaCalls)
-        } else if (fullCalls.length > 0) {
-          setAllCalls(fullCalls)
-        } else if (deltaCalls.length > 0) {
-          setAllCalls(deltaCalls)
+          setIsLoading(false)
         }
+
+        const [deltaRes, fullRes] = await Promise.all([
+          fetch(`/api/calls?mode=delta&limit=200${agentParam}`),
+          cacheCalls.length === 0 ? fetch(`/api/calls?limit=200&hours=168${agentParam}`) : Promise.resolve(null),
+        ])
+
+        const deltaData = deltaRes?.ok ? await deltaRes.json() : null
+        const fullData = fullRes?.ok ? await fullRes.json() : null
+        const deltaCalls: Call[] = dedupeCalls(deltaData?.calls || [])
+        const fullCalls: Call[] = dedupeCalls(fullData?.calls || [])
+
+        if (cacheCalls.length === 0 && fullCalls.length > 0) {
+          setAllCalls(fullCalls)
+        }
+        if (deltaCalls.length > 0) mergeNewCalls(deltaCalls)
       } else {
         const url = mode === 'refresh'
           ? `/api/calls?mode=delta&limit=200${agentParam}`
