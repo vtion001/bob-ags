@@ -28,6 +28,8 @@ interface NotesDispositionPanelProps {
   }
   score: number
   missingCriteria: string[]
+  suggestedDisposition?: string | null
+  aiNotes?: string | null
 }
 
 const DISPOSITIONS: Record<string, { label: string; color: string; description: string }> = {
@@ -53,13 +55,34 @@ const DISPOSITIONS: Record<string, { label: string; color: string; description: 
   }
 }
 
-export default function NotesDispositionPanel({ currentState, score, missingCriteria }: NotesDispositionPanelProps) {
+export default function NotesDispositionPanel({ currentState, score, missingCriteria, suggestedDisposition: aiSuggestedDisposition, aiNotes }: NotesDispositionPanelProps) {
   const [notes, setNotes] = useState('')
   const [selectedDisposition, setSelectedDisposition] = useState('')
   const [expanded, setExpanded] = useState(true)
 
   useEffect(() => {
-    // Auto-determine disposition based on score and ZTP violations
+    if (aiSuggestedDisposition) {
+      const dispositionMap: Record<string, string> = {
+        qualified: 'qualified-transfer',
+        not_qualified: 'informational',
+        follow_up: 'warm-lead',
+        transfer_988: 'supervisor-review',
+      }
+      const mapped = dispositionMap[aiSuggestedDisposition]
+      if (mapped) {
+        setSelectedDisposition(mapped)
+      }
+    }
+  }, [aiSuggestedDisposition])
+
+  useEffect(() => {
+    if (aiNotes && !notes) {
+      setNotes(aiNotes)
+    }
+  }, [aiNotes])
+
+  useEffect(() => {
+    if (aiSuggestedDisposition) return
     const hasZTP = missingCriteria.some(c => ['3.4', '5.1', '5.2'].includes(c))
     
     if (hasZTP) {
@@ -71,7 +94,7 @@ export default function NotesDispositionPanel({ currentState, score, missingCrit
     } else {
       setSelectedDisposition('informational')
     }
-  }, [score, missingCriteria])
+  }, [score, missingCriteria, aiSuggestedDisposition])
 
   const disposition = DISPOSITIONS[selectedDisposition]
 
