@@ -3,8 +3,10 @@ import { Call } from "@/lib/ctm"
 import { useLiveAnalysis } from "@/hooks/monitor"
 import { extractGroup, KNOWN_GROUPS } from "@/lib/monitor/helpers"
 
+const GRACE_PERIOD_SECONDS = 30
+
 interface UseMonitorPageOptions {
-  role?: 'admin' | 'manager' | 'viewer'
+  role?: 'admin' | 'manager' | 'viewer' | 'qa'
   assignedAgentId?: string | null
   onNewCallAutoStart?: (call: Call) => void
 }
@@ -33,6 +35,8 @@ interface UseMonitorPageReturn {
   pollingInterval: number
   isViewerWithAssignment: boolean
   hasAgentAssignment: boolean
+  gracePeriodRemaining: number
+  isInGracePeriod: boolean
 }
 
 export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageReturn {
@@ -43,9 +47,13 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
   const [callsError, setCallsError] = useState<string | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<string>("All")
   const [pollingInterval] = useState(5)
+  const [gracePeriodRemaining, setGracePeriodRemaining] = useState(0)
+  const [isInGracePeriod, setIsInGracePeriod] = useState(false)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const previousCallsRef = useRef<Call[]>([])
   const hasAutoStartedRef = useRef(false)
+  const monitoredCallIdRef = useRef<string | null>(null)
+  const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isViewerWithAssignment = role === 'viewer' && !!assignedAgentId
   const hasAgentAssignment = !!assignedAgentId
 
@@ -67,11 +75,37 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
     }
   }, [])
 
+  const clearGracePeriod = useCallback(() => {
+    if (gracePeriodTimerRef.current) {
+      clearInterval(gracePeriodTimerRef.current)
+      gracePeriodTimerRef.current = null
+    }
+    setGracePeriodRemaining(0)
+    setIsInGracePeriod(false)
+  }, [])
+
+  const startGracePeriodCountdown = useCallback(() => {
+    clearGracePeriod()
+    setGracePeriodRemaining(GRACE_PERIOD_SECONDS)
+    setIsInGracePeriod(true)
+    
+    gracePeriodTimerRef.current = setInterval(() => {
+      setGracePeriodRemaining(prev => {
+        if (prev <= 1) {
+          clearGracePeriod()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }, [clearGracePeriod])
+
   const handleClose = useCallback(() => {
     hasAutoStartedRef.current = false
     setSelectedCallId(null)
     setSelectedCallData(null)
-  }, [])
+    clearGracePeriod()
+  }, [clearGracePeriod])
 
   const {
     isMonitoring,
@@ -110,7 +144,14 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
     try {
       setCallsError(null)
       const res = await fetch("/api/ctm/active-calls")
-      if (!res.ok) throw new Error("Failed to fetch")
+      if (res.status === 401) {
+        setCallsError("Session expired. Please refresh the page or log in again.")
+        return
+      }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to fetch active calls")
+      }
       const data = await res.json()
       const calls: Call[] = Array.isArray(data) ? data : data.calls || []
 
@@ -123,17 +164,35 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
         playBeep()
         setSelectedCallId(newCall.id)
         setSelectedCallData(newCall)
+        monitoredCallIdRef.current = newCall.id
         setTimeout(() => {
           startMonitoring(newCall.id)
         }, 100)
       }
 
+      if (isMonitoring && monitoredCallIdRef.current) {
+        const currentCallStillActive = calls.some(c => c.id === monitoredCallIdRef.current)
+        if (!currentCallStillActive && !isInGracePeriod) {
+          console.log('[MonitorPage] Monitored call ended, starting grace period')
+          startGracePeriodCountdown()
+        }
+      }
+
       previousCallsRef.current = calls
       setActiveCalls(calls)
     } catch (err) {
-      setCallsError("Failed to load active calls")
+      setCallsError(err instanceof Error ? err.message : "Failed to load active calls")
     }
-  }, [isViewerWithAssignment, isMonitoring, startMonitoring, playBeep])
+  }, [isViewerWithAssignment, isMonitoring, startMonitoring, playBeep, isInGracePeriod, startGracePeriodCountdown])
+
+  useEffect(() => {
+    if (isInGracePeriod && gracePeriodRemaining === 0) {
+      console.log('[MonitorPage] Grace period ended, stopping monitoring')
+      hasAutoStartedRef.current = false
+      monitoredCallIdRef.current = null
+      stopMonitoring()
+    }
+  }, [gracePeriodRemaining, isInGracePeriod, stopMonitoring])
 
   useEffect(() => {
     if (isMonitoring) {
@@ -160,17 +219,21 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
       setCallsError('Please select a call first')
       return
     }
+    monitoredCallIdRef.current = callIdToUse
     await startMonitoring(callIdToUse)
   }, [selectedCallId, selectedCallData, startMonitoring])
 
   const handleStopMonitoring = useCallback(() => {
     hasAutoStartedRef.current = false
+    monitoredCallIdRef.current = null
+    clearGracePeriod()
     stopMonitoring()
-  }, [stopMonitoring])
+  }, [stopMonitoring, clearGracePeriod])
 
   const handleSelectCall = useCallback((call: Call) => {
     setSelectedCallId(call.id)
     setSelectedCallData(call)
+    monitoredCallIdRef.current = call.id
     if (isMonitoring) {
       stopMonitoring()
       setTimeout(() => {
@@ -214,5 +277,7 @@ export function useMonitorPage(options?: UseMonitorPageOptions): UseMonitorPageR
     pollingInterval,
     isViewerWithAssignment,
     hasAgentAssignment,
+    gracePeriodRemaining,
+    isInGracePeriod,
   }
 }

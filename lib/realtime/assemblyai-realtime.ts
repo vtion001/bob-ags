@@ -93,6 +93,7 @@ export class AssemblyAIRealtime {
 
       let isReady = false;
       let sessionId: string | null = null;
+      let audioStartTime: number | null = null;
 
       this.transcriber.on('open', (event) => {
         console.log('[AAI] StreamingTranscriber OPEN. Session ID:', event.id);
@@ -165,23 +166,87 @@ export class AssemblyAIRealtime {
       this.microphone = this.audioContext.createMediaStreamSource(this.mediaStream);
 
       const sendAudioSafe = (buffer: ArrayBufferLike) => {
-        if (!this.transcriber || !isReady) return;
+        if (!this.transcriber) return;
+        if (!isReady) {
+          console.warn('[AAI] sendAudio skipped: transcriber not ready');
+          return;
+        }
+        if (!audioStartTime) {
+          console.warn('[AAI] sendAudio skipped: audio stream not started yet');
+          return;
+        }
         try {
           this.transcriber.sendAudio(buffer as ArrayBuffer);
         } catch (err) {
-          console.warn('[AAI] sendAudio error (socket may not be ready):', err);
+          console.warn('[AAI] sendAudio error:', err);
         }
       };
 
       // Buffer audio to accumulate at least 50ms worth of samples before sending
       // At 16kHz, 50ms = 800 samples
       const minSamplesPerChunk = 800;
+      // Max samples per chunk: 1000ms at 16kHz = 16000 samples, leave some margin
+      const maxSamplesPerChunk = 15000;
       this.audioBuffer = [];
+      let hasStartedSending = false;
       
       this.flushAudioBuffer = () => {
         if (this.audioBuffer.length === 0) return;
         const totalSamples = this.audioBuffer.reduce((sum, arr) => sum + arr.length, 0);
         if (totalSamples < minSamplesPerChunk) return;
+        
+        // Mark audio as started on first flush
+        if (!hasStartedSending) {
+          hasStartedSending = true;
+          audioStartTime = Date.now();
+          console.log('[AAI] First audio chunk sent, stream started');
+        }
+        
+        // If total is too large, split into multiple chunks
+        if (totalSamples > maxSamplesPerChunk) {
+          console.log('[AAI] Buffer too large (' + totalSamples + ' samples), splitting into chunks');
+          let sentSamples = 0;
+          while (sentSamples < totalSamples) {
+            const remainingSamples = totalSamples - sentSamples;
+            const chunkSize = Math.min(remainingSamples, maxSamplesPerChunk);
+            
+            // Calculate which chunks to include
+            let currentOffset = 0;
+            const chunksToSend: Int16Array[] = [];
+            let collectedSamples = 0;
+            
+            for (const chunk of this.audioBuffer) {
+              if (collectedSamples >= chunkSize) break;
+              const samplesFromThisChunk = Math.min(chunk.length, chunkSize - collectedSamples);
+              chunksToSend.push(chunk.slice(0, samplesFromThisChunk));
+              collectedSamples += samplesFromThisChunk;
+              currentOffset += chunk.length;
+            }
+            
+            const combined = new Int16Array(chunkSize);
+            let offset = 0;
+            for (const chunk of chunksToSend) {
+              combined.set(chunk, offset);
+              offset += chunk.length;
+            }
+            
+            console.log('[AAI] Sending split chunk:', combined.length, 'samples');
+            sendAudioSafe(combined.buffer);
+            sentSamples += chunkSize;
+            
+            // Remove sent chunks from buffer
+            let removeCount = 0;
+            let removedSamples = 0;
+            for (const chunk of this.audioBuffer) {
+              if (removedSamples >= chunkSize) break;
+              const toRemove = Math.min(chunk.length, chunkSize - removedSamples);
+              removeCount++;
+              removedSamples += toRemove;
+            }
+            this.audioBuffer.splice(0, removeCount);
+          }
+          return;
+        }
         
         // Combine all buffers into one
         const combined = new Int16Array(totalSamples);

@@ -69,6 +69,7 @@ export default function UserPermissionsCard({
               onChange={(value) => setNewUserRole(value as RoleType)}
               options={[
                 { value: 'viewer', label: 'Viewer - Monitor only' },
+                { value: 'qa', label: 'QA - View calls & analysis' },
                 { value: 'manager', label: 'Manager - Full access (no settings)' },
                 { value: 'admin', label: 'Admin - Full access' },
               ]}
@@ -122,6 +123,14 @@ export default function UserPermissionsCard({
                     <Button
                       variant="secondary"
                       size="sm"
+                      onClick={() => onApproveUser(user.user_id, 'qa')}
+                      disabled={isSaving}
+                    >
+                      Approve QA
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => onRejectUser(user.user_id)}
                       disabled={isSaving}
                       className="text-navy-600 border-navy-300 hover:bg-navy-100"
@@ -164,6 +173,7 @@ export default function UserPermissionsCard({
                     <p className="text-sm text-navy-500">
                       {user.role === 'admin' && 'Full access to all features'}
                       {user.role === 'manager' && 'Access to calls, monitor, history, and analysis'}
+                      {user.role === 'qa' && 'View all calls, history, and run analysis'}
                       {user.role === 'viewer' && 'Monitor tab only'}
                     </p>
                   </div>
@@ -177,6 +187,7 @@ export default function UserPermissionsCard({
                       onChange={(value) => onUpdateRole(user.user_id, value as RoleType)}
                       options={[
                         { value: 'viewer', label: 'Viewer' },
+                        { value: 'qa', label: 'QA' },
                         { value: 'manager', label: 'Manager' },
                         { value: 'admin', label: 'Admin' },
                       ]}

@@ -64,6 +64,8 @@ export default function MonitorPage() {
     isCrisis,
     isViewerWithAssignment,
     hasAgentAssignment,
+    gracePeriodRemaining,
+    isInGracePeriod,
   } = useMonitorPage({ role: role as 'admin' | 'manager' | 'viewer', assignedAgentId })
 
   const {
@@ -111,7 +113,19 @@ export default function MonitorPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {!isMonitoring ? (
+              {isInGracePeriod ? (
+                <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Analysis Ending Soon</p>
+                    <p className="text-xs text-amber-600">Finalizing results in {gracePeriodRemaining}s</p>
+                  </div>
+                </div>
+              ) : !isMonitoring ? (
                 <>
                   {selectedCallData ? (
                     <div className="flex items-center gap-2 px-3 py-2 bg-navy-50 border border-navy-200 rounded-lg">
@@ -146,21 +160,31 @@ export default function MonitorPage() {
                     </div>
                   ) : (
                     <span className="text-sm text-navy-400 italic px-3">
-                      Select a call from the list below to monitor
+                      {isViewerWithAssignment ? 'Waiting for incoming calls...' : 'Select a call from the list below to monitor'}
                     </span>
                   )}
-                  <Button variant="primary" size="md" onClick={handleStartMonitoring}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                    Start Live Analysis
-                  </Button>
+                  {!isViewerWithAssignment && (
+                    <Button variant="primary" size="md" onClick={handleStartMonitoring}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                      Start Live Analysis
+                    </Button>
+                  )}
                 </>
               ) : (
-                <Button variant="secondary" size="md" onClick={handleStopMonitoring}>
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  Stop Monitoring
-                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm font-semibold text-green-700">Monitoring Active</span>
+                  </div>
+                  {!isViewerWithAssignment && (
+                    <Button variant="secondary" size="md" onClick={handleStopMonitoring}>
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      Stop Monitoring
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -250,21 +274,33 @@ export default function MonitorPage() {
                 <div className="flex items-center justify-between p-4 bg-navy-50 border border-navy-200 rounded-xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-navy-900 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
+                      {isInGracePeriod ? (
+                        <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      )}
                     </div>
                     <div>
-                      <p className="font-semibold text-navy-900">Monitoring Active</p>
-                      <p className="text-sm text-navy-600">New calls will automatically start analysis</p>
+                      <p className="font-semibold text-navy-900">
+                        {isInGracePeriod ? 'Finalizing Analysis...' : 'Auto-Monitoring Active'}
+                      </p>
+                      <p className="text-sm text-navy-600">
+                        {isInGracePeriod 
+                          ? `Recording ending. Final results in ${gracePeriodRemaining} seconds.`
+                          : 'New calls will automatically start analysis'}
+                      </p>
                     </div>
                   </div>
-                  <Button variant="secondary" size="md" onClick={handleBackToLiveView}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                    Back to Live Monitor View
-                  </Button>
+                  {isInGracePeriod && (
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl font-bold text-amber-600">{gracePeriodRemaining}</div>
+                      <span className="text-sm text-amber-500">seconds remaining</span>
+                    </div>
+                  )}
                 </div>
               )}
 
