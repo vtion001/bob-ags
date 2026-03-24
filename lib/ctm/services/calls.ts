@@ -63,6 +63,32 @@ export class CallsService extends CTMClient {
     const hours = Math.max(0.017, minutes / 60)
     return this.getCalls({ hours, limit: 50 })
   }
+
+  async searchCallsByPhone(phoneNumber: string, hours: number = 8760): Promise<Call[]> {
+    const normalizedSearch = phoneNumber.replace(/\D/g, '')
+    const allCalls = await this.getCalls({ limit: 5000, hours })
+    
+    console.log('[searchCallsByPhone] Fetched calls:', allCalls.length)
+    
+    return allCalls.filter(call => {
+      const phoneFields = [
+        call.phone,
+        call.callerNumber,
+        call.trackingNumber,
+        call.destinationNumber,
+        call.poolNumber,
+        call.didNumber,
+      ]
+      return phoneFields.some(field => {
+        if (!field) return false
+        const normalizedField = field.replace(/\D/g, '')
+        if (normalizedField.length >= 10 && normalizedSearch.length >= 10) {
+          return normalizedField.slice(-10) === normalizedSearch.slice(-10)
+        }
+        return normalizedField.includes(normalizedSearch)
+      })
+    })
+  }
 }
 
 export function createCallsService(): CallsService {

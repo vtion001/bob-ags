@@ -33,7 +33,9 @@ interface HistoryFiltersProps {
   analyzedOnly: boolean
   onAnalyzedOnlyChange: (v: boolean) => void
   onRefresh: () => void
+  onSearch: () => void
   isRefreshing: boolean
+  isSearching: boolean
   isSyncing?: boolean
 }
 
@@ -243,7 +245,9 @@ export default function HistoryFilters({
   analyzedOnly,
   onAnalyzedOnlyChange,
   onRefresh,
+  onSearch,
   isRefreshing,
+  isSearching,
   isSyncing,
 }: HistoryFiltersProps) {
   return (
@@ -254,7 +258,7 @@ export default function HistoryFilters({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Filter by phone..."
+          placeholder="(772) 766-9678"
         />
 
         <GroupAgentCascade
@@ -289,10 +293,10 @@ export default function HistoryFilters({
             variant="primary"
             size="md"
             className="w-full"
-            onClick={onRefresh}
-            isLoading={isRefreshing}
+            onClick={onSearch}
+            isLoading={isSearching}
           >
-            Refresh
+            Search
           </Button>
         </div>
       </div>
