@@ -202,12 +202,35 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
 
     if (searchQuery) {
       const normalizedQuery = searchQuery.replace(/\D/g, '')
+      console.log('[useCallHistory] Phone search:', { searchQuery, normalizedQuery, totalCalls: results.length })
+      
+      const beforeCount = results.length
       results = results.filter(call => {
-        const normalizedPhone = call.phone.replace(/\D/g, '')
-        const normalizedCaller = call.callerNumber?.replace(/\D/g, '') || ''
-        return normalizedPhone.includes(normalizedQuery) ||
-               normalizedCaller.includes(normalizedQuery)
+        const phoneFields = [
+          call.phone,
+          call.callerNumber,
+          call.trackingNumber,
+          call.destinationNumber,
+          call.poolNumber,
+          call.didNumber,
+        ]
+        const matches = phoneFields.some(field => {
+          if (!field) return false
+          const normalizedField = field.replace(/\D/g, '')
+          return normalizedField.includes(normalizedQuery)
+        })
+        if (matches) {
+          console.log('[useCallHistory] Matched call:', {
+            id: call.id,
+            phone: call.phone,
+            callerNumber: call.callerNumber,
+            trackingNumber: call.trackingNumber,
+            matchedField: phoneFields.find(f => f?.replace(/\D/g, '').includes(normalizedQuery))
+          })
+        }
+        return matches
       })
+      console.log('[useCallHistory] Phone search results:', { before: beforeCount, after: results.length })
     }
 
     if (analyzedOnly) {

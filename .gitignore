@@ -21,6 +21,9 @@ supabase/.temp/
 node_modules/
 .next/
 .DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # Supabase secrets (never commit)
 # NEXT_PUBLIC_SUPABASE_URL=

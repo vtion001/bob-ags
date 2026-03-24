@@ -60,6 +60,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (!isLoading && role === 'viewer' && pathname === '/dashboard') {
       window.location.href = '/dashboard/monitor'
     }
+    if (!isLoading && role === 'qa' && pathname === '/dashboard') {
+      // QA can view calls, stay on /dashboard
+    }
   }, [isLoading, role, pathname])
 
   const getFilteredNavItems = (): NavItem[] => {
