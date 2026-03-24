@@ -2,6 +2,30 @@ import { CTMClient } from '../client'
 import { transformCall } from '../transformer'
 import type { Call, GetCallsParams, CTMCall } from '@/lib/types'
 
+function normalizePhoneForComparison(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return digits.slice(1)
+  }
+  return digits
+}
+
+function phoneMatches(phone1: string, phone2: string): boolean {
+  const norm1 = normalizePhoneForComparison(phone1)
+  const norm2 = normalizePhoneForComparison(phone2)
+  
+  if (!norm1 || !norm2) return false
+  
+  if (norm1.length === norm2.length) {
+    return norm1 === norm2
+  }
+  
+  const shorter = norm1.length < norm2.length ? norm1 : norm2
+  const longer = norm1.length < norm2.length ? norm2 : norm1
+  
+  return longer.slice(-shorter.length) === shorter
+}
+
 export class CallsService extends CTMClient {
   async getCalls(params: GetCallsParams = {}): Promise<Call[]> {
     const { limit = 100, hours = 24, status, sourceId, agentId } = params
@@ -65,7 +89,6 @@ export class CallsService extends CTMClient {
   }
 
   async searchCallsByPhone(phoneNumber: string, hours: number = 8760): Promise<Call[]> {
-    const normalizedSearch = phoneNumber.replace(/\D/g, '')
     const allCalls = await this.getCalls({ limit: 5000, hours })
     
     console.log('[searchCallsByPhone] Fetched calls:', allCalls.length)
@@ -81,11 +104,7 @@ export class CallsService extends CTMClient {
       ]
       return phoneFields.some(field => {
         if (!field) return false
-        const normalizedField = field.replace(/\D/g, '')
-        if (normalizedField.length >= 10 && normalizedSearch.length >= 10) {
-          return normalizedField.slice(-10) === normalizedSearch.slice(-10)
-        }
-        return normalizedField.includes(normalizedSearch)
+        return phoneMatches(String(field), phoneNumber)
       })
     })
   }
