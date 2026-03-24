@@ -45,7 +45,41 @@ function transformCallToAPIResponse(c: any) {
   }
 }
 
+function normalizePhoneForComparison(phone: string): string {
+  // Remove all non-digits
+  const digits = phone.replace(/\D/g, '')
+  // If 11 digits and starts with 1, strip the leading 1 (US country code)
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return digits.slice(1)
+  }
+  return digits
+}
+
+function phoneMatches(phone1: string, phone2: string): boolean {
+  const norm1 = normalizePhoneForComparison(phone1)
+  const norm2 = normalizePhoneForComparison(phone2)
+  
+  // If either is empty after normalization, no match
+  if (!norm1 || !norm2) return false
+  
+  // If lengths are equal, direct comparison
+  if (norm1.length === norm2.length) {
+    return norm1 === norm2
+  }
+  
+  // If lengths differ, compare last digits of the longer number
+  // to the entire shorter number (handles +1 prefix differences)
+  const shorter = norm1.length < norm2.length ? norm1 : norm2
+  const longer = norm1.length < norm2.length ? norm2 : norm1
+  
+  // Compare last N digits of longer with shorter (N = length of shorter)
+  return longer.slice(-shorter.length) === shorter
+}
+
 function filterCallsByPhone(calls: any[], normalizedPhone: string) {
+  // normalizedPhone comes in as digits only (already stripped of non-digits)
+  // We need to compare it against the phone fields
+  
   return calls.filter(call => {
     const phoneFields = [
       call.phone,
@@ -54,13 +88,11 @@ function filterCallsByPhone(calls: any[], normalizedPhone: string) {
       call.tracking_number,
       call.trackingNumber,
     ]
+    
     return phoneFields.some(field => {
       if (!field) return false
-      const normalizedField = String(field).replace(/\D/g, '')
-      if (normalizedField.length >= 10 && normalizedPhone.length >= 10) {
-        return normalizedField.slice(-10) === normalizedPhone.slice(-10)
-      }
-      return normalizedField.includes(normalizedPhone)
+      // Use smart phone matching that handles country codes
+      return phoneMatches(String(field), normalizedPhone)
     })
   })
 }
@@ -81,8 +113,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
     }
 
-    const normalizedPhone = phone.replace(/\D/g, '')
-    console.log('[Phone Search API] Searching for:', { phone, normalizedPhone })
+    // Keep original phone for display, filterCallsByPhone handles normalization
+    console.log('[Phone Search API] Searching for:', { phone })
 
     // Step 1: Search Supabase cache
     console.log('[Phone Search API] Step 1: Searching Supabase cache...')
@@ -96,7 +128,7 @@ export async function GET(request: NextRequest) {
       console.error('[Phone Search API] Supabase error:', supabaseError)
     }
 
-    const supabaseFiltered = filterCallsByPhone(supabaseCalls || [], normalizedPhone)
+    const supabaseFiltered = filterCallsByPhone(supabaseCalls || [], phone)
     console.log('[Phone Search API] Supabase matches:', supabaseFiltered.length)
 
     let results: any[] = supabaseFiltered.map(transformCallToAPIResponse)
