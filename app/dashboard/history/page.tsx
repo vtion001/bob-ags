@@ -14,6 +14,7 @@ export default function HistoryPage() {
     userGroups,
     isLoading,
     isRefreshing,
+    isSearching,
     isSyncing,
     error,
     searchQuery,
@@ -29,6 +30,7 @@ export default function HistoryPage() {
     scoreFilter,
     setScoreFilter,
     handleRefresh,
+    handleSearch,
     handleExport,
   } = useCallHistory()
 
@@ -69,7 +71,9 @@ export default function HistoryPage() {
           analyzedOnly={analyzedOnly}
           onAnalyzedOnlyChange={setAnalyzedOnly}
           onRefresh={handleRefresh}
+          onSearch={handleSearch}
           isRefreshing={isRefreshing}
+          isSearching={isSearching}
           isSyncing={isSyncing}
         />
       </Card>

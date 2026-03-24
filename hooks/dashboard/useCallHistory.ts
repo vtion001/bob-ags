@@ -27,6 +27,7 @@ interface UseCallHistoryReturn {
   userGroups: UserGroup[]
   isLoading: boolean
   isRefreshing: boolean
+  isSearching: boolean
   isSyncing: boolean
   error: string | null
   searchQuery: string
@@ -42,6 +43,7 @@ interface UseCallHistoryReturn {
   scoreFilter: { min: number; max: number }
   setScoreFilter: (f: { min: number; max: number }) => void
   handleRefresh: () => void
+  handleSearch: () => Promise<void>
   handleExport: () => void
 }
 
@@ -73,6 +75,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
   const [allCalls, setAllCalls] = useState<Call[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -334,6 +337,46 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     fetchCalls({ mode: 'refresh', blocking: true })
   }, [fetchCalls])
 
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      setError(null)
+      return
+    }
+
+    setIsSearching(true)
+    setError(null)
+
+    try {
+      const normalizedPhone = searchQuery.replace(/\D/g, '')
+      const res = await fetch(`/api/ctm/calls/search?phone=${encodeURIComponent(normalizedPhone)}&hours=8760`)
+      
+      if (!res.ok) {
+        throw new Error('Search failed')
+      }
+
+      const data = await res.json()
+      const searchedCalls: Call[] = data.calls || []
+      
+      console.log('[useCallHistory] Phone search results from CTM:', {
+        searchQuery,
+        normalizedPhone,
+        resultsCount: searchedCalls.length
+      })
+
+      if (searchedCalls.length > 0) {
+        setAllCalls(searchedCalls)
+        setFilteredCalls(searchedCalls)
+      } else {
+        setError('No calls found for this phone number')
+      }
+    } catch (err) {
+      console.error('Phone search error:', err)
+      setError(err instanceof Error ? err.message : 'Search failed')
+    } finally {
+      setIsSearching(false)
+    }
+  }, [searchQuery])
+
   const handleExport = useCallback(() => {
     const csv = [
       ['Time', 'Phone', 'Direction', 'Duration', 'Score', 'Status'],
@@ -363,6 +406,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     userGroups,
     isLoading,
     isRefreshing,
+    isSearching,
     isSyncing,
     error,
     searchQuery,
@@ -378,6 +422,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     scoreFilter,
     setScoreFilter,
     handleRefresh,
+    handleSearch,
     handleExport,
   }
 }
