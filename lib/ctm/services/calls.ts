@@ -30,12 +30,13 @@ export class CallsService extends CTMClient {
   async getCalls(params: GetCallsParams = {}): Promise<Call[]> {
     const { limit = 100, hours = 24, status, sourceId, agentId } = params
     
-    const callsPerRequest = 10
+    const callsPerRequest = 200
     const pagesNeeded = Math.ceil(limit / callsPerRequest)
+    const maxPages = Math.min(pagesNeeded, 500)
     
     let allCalls: Call[] = []
     
-    for (let page = 1; page <= pagesNeeded && allCalls.length < limit; page++) {
+    for (let page = 1; page <= maxPages && allCalls.length < limit; page++) {
       let endpoint = `/accounts/${this.accountId}/calls.json?limit=${callsPerRequest}&hours=${hours}&page=${page}`
       if (status) endpoint += `&status=${status}`
       if (sourceId) endpoint += `&source_id=${sourceId}`
@@ -54,6 +55,50 @@ export class CallsService extends CTMClient {
       }
     }
 
+    return allCalls
+  }
+
+  async getAllCalls(params: { hours?: number; status?: string | null; sourceId?: string | null; agentId?: string | null } = {}): Promise<Call[]> {
+    const { hours = 8760, status, sourceId, agentId } = params
+    
+    const callsPerRequest = 200
+    const maxPages = 500
+    
+    let allCalls: Call[] = []
+    let page = 1
+    let hasMore = true
+    
+    while (page <= maxPages && hasMore) {
+      let endpoint = `/accounts/${this.accountId}/calls.json?limit=${callsPerRequest}&hours=${hours}&page=${page}`
+      if (status) endpoint += `&status=${status}`
+      if (sourceId) endpoint += `&source_id=${sourceId}`
+      if (agentId) endpoint += `&agent_id=${agentId}`
+
+      const data = await this.makeRequest<{ calls?: CTMCall[] }>(endpoint)
+      
+      if (!data.calls || data.calls.length === 0) {
+        hasMore = false
+        break
+      }
+
+      const transformedCalls = data.calls.map(transformCall)
+      
+      if (agentId) {
+        allCalls.push(...transformedCalls.filter(c => c.agent?.id === agentId))
+      } else {
+        allCalls.push(...transformedCalls)
+      }
+      
+      console.log(`[getAllCalls] Fetched page ${page}, total calls: ${allCalls.length}`)
+      
+      if (data.calls.length < callsPerRequest) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+
+    console.log(`[getAllCalls] Complete. Total calls fetched: ${allCalls.length}`)
     return allCalls
   }
 
@@ -89,7 +134,7 @@ export class CallsService extends CTMClient {
   }
 
   async searchCallsByPhone(phoneNumber: string, hours: number = 8760): Promise<Call[]> {
-    const allCalls = await this.getCalls({ limit: 5000, hours })
+    const allCalls = await this.getAllCalls({ hours })
     
     console.log('[searchCallsByPhone] Fetched calls:', allCalls.length)
     

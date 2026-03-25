@@ -154,21 +154,8 @@ export async function GET(request: NextRequest) {
       try {
         const ctmClient = new CTMClient()
         
-        // First, let's get all calls from CTM to see what's available
-        console.log('[Phone Search API] Fetching all calls from CTM...')
-        const allCTMCalls = await ctmClient.calls.getCalls({ limit: 500, hours: 8760 })
-        console.log('[Phone Search API] Total CTM calls:', allCTMCalls.length)
-        
-        // Log sample of phone numbers to see what formats CTM returns
-        if (allCTMCalls.length > 0) {
-          console.log('[Phone Search API] Sample CTM phone numbers:', allCTMCalls.slice(0, 5).map(c => ({
-            id: c.id,
-            phone: c.phone,
-            callerNumber: c.callerNumber,
-            trackingNumber: c.trackingNumber,
-          })))
-        }
-        
+        // Search CTM for calls matching the phone number
+        console.log('[Phone Search API] Searching CTM for phone:', phone)
         const ctmCalls = await ctmClient.calls.searchCallsByPhone(phone, 8760)
         console.log('[Phone Search API] CTM calls after phone filter:', ctmCalls.length)
         
