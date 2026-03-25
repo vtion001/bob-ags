@@ -37,6 +37,13 @@ const allNavItems: NavItem[] = [
     permission: 'can_view_history',
   },
   {
+    href: '/dashboard/qa-logs',
+    label: 'QA Logs',
+    icon: 'clipboard',
+    description: 'Override history',
+    permission: 'qa_logs',
+  },
+  {
     href: '/dashboard/agents',
     label: 'Agents',
     icon: 'users',
@@ -72,6 +79,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       if (item.permission === 'can_view_monitor') return permissions.can_view_monitor
       if (item.permission === 'can_view_history') return permissions.can_view_history
       if (item.permission === 'can_view_agents') return permissions.can_view_agents
+      if (item.permission === 'qa_logs') return role === 'admin' || role === 'qa'
       return true
     })
   }
@@ -141,6 +149,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             />
           </svg>
         )}
+        {icon === 'clipboard' && (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+            />
+          </svg>
+        )}
       </span>
     )
   }
@@ -160,10 +178,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navbar email={email || undefined} />
+      <div className="no-print">
+        <Navbar email={email || undefined} />
+      </div>
 
       <div className="flex">
-        <aside className="hidden md:flex flex-col w-64 bg-navy-900 text-white">
+        <aside className="hidden md:flex flex-col w-64 bg-navy-900 text-white no-print">
           <nav className="flex-1 px-3 py-6 space-y-1">
             {filteredNavItems.map(item => {
               const isActive =
