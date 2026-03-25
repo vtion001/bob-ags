@@ -8,6 +8,13 @@ import { RUBRIC_CRITERIA } from "@/lib/ai"
 import { useMonitorPage } from "@/hooks/monitor/useMonitorPage"
 import { useLiveAIInsights } from "@/hooks/monitor/useLiveAIInsights"
 import { useAuth } from "@/contexts/AuthContext"
+
+function toISOString(value: any): string | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') return value
+  if (typeof value.toISOString === 'function') return value.toISOString()
+  return undefined
+}
 import NotesDispositionPanel from "@/components/call-detail/NotesDispositionPanel"
 import LiveAIInsightsPanel from "@/components/monitor/LiveAIInsightsPanel"
 import {
@@ -79,7 +86,7 @@ export default function MonitorPage() {
     callId: selectedCallId || undefined,
     callPhone: selectedCallData?.phone || undefined,
     callDirection: selectedCallData?.direction || undefined,
-    callTimestamp: selectedCallData?.timestamp?.toISOString() || undefined,
+    callTimestamp: toISOString(selectedCallData?.timestamp),
   })
 
   const byCategory = (category: string) => {
