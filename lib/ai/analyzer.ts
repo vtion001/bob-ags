@@ -16,14 +16,14 @@ import {
 function buildRubricPrompt(transcript: string): string {
   return `You are a quality assurance analyst for a substance abuse helpline. Analyze the following call transcript and evaluate it against each criterion.
 
-For EACH of the 25 criteria below, respond with PASS or FAIL and a brief reason.
+For EACH of the 22 evaluated criteria below, respond with PASS or FAIL and a brief reason. For criteria 4.2, 4.3, 4.4, mark as N/A (these require manual Salesforce verification).
 
 Return your response in this exact format for each criterion (one per line):
-CRITERION_ID|PASS/FAIL|Brief reason
+CRITERION_ID|PASS/FAIL|N/A|Brief reason
 
 Criteria:
 1.1 Opening - Used approved greeting: Agent says "Hello Flyland, this is [Agent Name]"
-1.2 Opening - Confirmed caller name and relationship (if Al-Anon/family)
+1.2 Opening - Confirmed caller name and relationship (Applicable for treatment and facility inquiry calls; N/A if meeting call)
 1.3 Opening - Identified reason for call promptly (first 30 seconds) without assumptions
 1.4 Opening - Verified caller location (state) - agent asks and repeats back state
 2.1 Probing - Asked about sober/clean time using "When was your last drink or drug use?"
@@ -39,9 +39,9 @@ Criteria:
 3.6 Qualification - Provided correct referrals for non-qualifying cases
 3.7 Qualification - Maintained empathy (uses name 2x+, empathetic statements)
 4.1 Closing - Ended call professionally with clear next steps
-4.2 Closing - Documented in Salesforce within 5 minutes
-4.3 Closing - Applied correct star rating (4 stars = qualified, 2 = unqualified)
-4.4 Closing - Noted follow-up/callback requests
+4.2 Closing - Documented in Salesforce within 5 minutes (N/A - requires manual Salesforce verification)
+4.3 Closing - Applied correct star rating based on CTM recording (N/A - requires manual Salesforce verification)
+4.4 Closing - Noted follow-up/callback requests (N/A - requires manual Salesforce verification)
 5.1 Compliance - Upheld patient confidentiality (HIPAA) (ZTP - Auto-FAIL if violated)
 5.2 Compliance - Avoided providing medical advice (ZTP - Auto-FAIL if violated)
 5.3 Compliance - Maintained response time (under 30 seconds)
@@ -53,20 +53,25 @@ TRANSCRIPT:
 ${transcript}
 ---
 
-Return exactly 25 lines, one for each criterion in order.`
+Return exactly 25 lines, one for each criterion in order. For 4.2, 4.3, 4.4 use N/A as the status.`
 }
 
-function parseRubricResults(content: string): Record<string, { pass: boolean; details: string }> {
-  const results: Record<string, { pass: boolean; details: string }> = {}
+function parseRubricResults(content: string): Record<string, { pass: boolean; details: string; na?: boolean }> {
+  const results: Record<string, { pass: boolean; details: string; na?: boolean }> = {}
   const lines = content.split('\n').filter(l => l.trim())
   for (const line of lines) {
     const parts = line.split('|')
     if (parts.length >= 3) {
       const id = parts[0].trim()
       const status = parts[1].trim().toUpperCase()
+      const isNA = status === 'N/A'
       const details = parts.slice(2).join('|').trim()
       if (/^\d+\.\d+$/.test(id)) {
-        results[id] = { pass: status === 'PASS', details: details.substring(0, 200) }
+        results[id] = { 
+          pass: isNA ? true : status === 'PASS', 
+          details: details.substring(0, 200),
+          na: isNA ? true : undefined
+        }
       }
     }
   }
@@ -76,7 +81,8 @@ function parseRubricResults(content: string): Record<string, { pass: boolean; de
 export async function analyzeTranscript(
   transcript: string,
   phone: string,
-  client?: string
+  client?: string,
+  ctmStarRating?: number
 ): Promise<Analysis> {
   const apiKey = process.env.OPENROUTER_API_KEY
   const lower = transcript.toLowerCase()
@@ -111,7 +117,23 @@ export async function analyzeTranscript(
     }
   }
 
-  const results = evaluateRubric(lower, aiResults)
+  const callType = detectCallType(transcript)
+  const results = evaluateRubric(lower, aiResults, callType)
+  
+  if (ctmStarRating !== undefined) {
+    const starRatingMap: Record<number, string> = {
+      4: '4 stars (Qualified Transfer)',
+      3: '3 stars (Warm Lead)',
+      2: '2 stars (Refer)',
+      1: '1 star (Do Not Refer)'
+    }
+    const ratingDetails = starRatingMap[ctmStarRating] || `${ctmStarRating} stars`
+    const idx = results.findIndex(r => r.id === '4.3')
+    if (idx !== -1) {
+      results[idx].details = `CTM Star Rating: ${ratingDetails}`
+    }
+  }
+  
   const { breakdown, ztpFailures, autoFailed } = calculateBreakdown(results)
   const score = calculateScore(breakdown, ztpFailures, autoFailed)
 
@@ -119,7 +141,6 @@ export async function analyzeTranscript(
   const mentionedLocations = extractLocations(transcript)
   const detectedState = mentionedLocations[0] || ''
   const detectedInsurance = detectInsurance(transcript)
-  const callType = detectCallType(transcript)
   const tags = generateTags(results, score, detectedInsurance, detectedState)
   const sentiment = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative'
   const disposition = getDisposition(results, score, autoFailed)
@@ -139,5 +160,6 @@ export async function analyzeTranscript(
     salesforce_notes: generateSalesforceNotes(results, score, autoFailed, mentionedNames),
     rubric_results: results,
     rubric_breakdown: breakdown,
+    ctm_star_rating: ctmStarRating,
   }
 }

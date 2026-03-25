@@ -26,6 +26,7 @@ export interface CallDBRow {
   wait_time: number | null
   ring_time: number | null
   score: number | null
+  star_rating: number | null
   sentiment: string | null
   summary: string | null
   tags: string[] | null
@@ -59,6 +60,7 @@ export interface CallAPIResponse {
   waitTime: number | null
   ringTime: number | null
   score: number | null
+  starRating: number | null
   sentiment: string | null
   summary: string | null
   tags: string[] | null
@@ -68,6 +70,7 @@ export interface CallAPIResponse {
   rubricBreakdown: unknown | null
   analysis?: {
     score: number | null
+    starRating: number | null
     sentiment: string | null
     summary: string | null
     tags: string[] | null
@@ -103,6 +106,7 @@ export function transformCTMToDBRow(c: Call, userId: string): Omit<CallDBRow, 'i
     wait_time: c.waitTime || null,
     ring_time: c.ringTime || null,
     score: (c as any).score || null,
+    star_rating: (c as any).starRating || null,
     sentiment: (c as any).sentiment || null,
     summary: (c as any).summary || null,
     tags: (c as any).tags || null,
@@ -138,6 +142,7 @@ export function transformDBRowToAPIResponse(row: CallDBRow): CallAPIResponse {
     waitTime: row.wait_time,
     ringTime: row.ring_time,
     score: row.score,
+    starRating: row.star_rating,
     sentiment: row.sentiment,
     summary: row.summary,
     tags: row.tags,
@@ -147,6 +152,7 @@ export function transformDBRowToAPIResponse(row: CallDBRow): CallAPIResponse {
     rubricBreakdown: row.rubric_breakdown,
     analysis: {
       score: row.score,
+      starRating: row.star_rating,
       sentiment: row.sentiment,
       summary: row.summary,
       tags: row.tags,
@@ -182,6 +188,7 @@ export function transformCTMCallToAPIResponse(c: Call): CallAPIResponse {
     waitTime: c.waitTime || null,
     ringTime: c.ringTime || null,
     score: (c as any).score || null,
+    starRating: (c as any).starRating || null,
     sentiment: (c as any).sentiment || null,
     summary: (c as any).summary || null,
     tags: (c as any).tags || null,
@@ -191,6 +198,7 @@ export function transformCTMCallToAPIResponse(c: Call): CallAPIResponse {
     rubricBreakdown: (c as any).rubricBreakdown || null,
     analysis: {
       score: (c as any).score || null,
+      starRating: (c as any).starRating || null,
       sentiment: (c as any).sentiment || null,
       summary: (c as any).summary || null,
       tags: (c as any).tags || null,

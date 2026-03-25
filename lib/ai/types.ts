@@ -2,6 +2,7 @@ export interface CriterionResult {
   id: string
   criterion: string
   pass: boolean
+  na?: boolean
   ztp: boolean
   autoFail: boolean
   details: string
@@ -38,6 +39,7 @@ export interface Analysis {
   salesforce_notes: string
   rubric_results?: CriterionResult[]
   rubric_breakdown?: RubricBreakdown
+  ctm_star_rating?: number
 }
 
 export interface RubricCriterion {
@@ -50,4 +52,5 @@ export interface RubricCriterion {
   failPhrases: string[]
   ztp: boolean
   autoFail: boolean
+  naTriggers?: string[]
 }

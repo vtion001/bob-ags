@@ -59,12 +59,13 @@ analyzeTranscript()  ←  lib/ai.ts
 When an API key is configured, the system sends the full transcript to OpenRouter using **Claude-3-Haiku** with a carefully crafted prompt. The prompt instructs the AI to:
 
 1. Act as a QA analyst for a substance abuse helpline
-2. Evaluate all 25 criteria
-3. Return exactly 25 lines in the format: `CRITERION_ID|PASS/FAIL|Brief reason`
+2. Evaluate all 22 evaluated criteria (skip 4.2, 4.3, 4.4 - these are N/A)
+3. Return exactly 25 lines in the format: `CRITERION_ID|PASS/FAIL|Brief reason` (or `CRITERION_ID|N/A|N/A|Brief reason` for always-N/A criteria)
 
 The response is parsed by `parseRubricResults()` — each line is split by `|` into:
 - `id`: The criterion ID (e.g., `3.4`)
-- `pass`: Boolean — `true` for PASS, `false` for FAIL
+- `pass`: Boolean — `true` for PASS, `false` for FAIL, or `true` if N/A
+- `na`: Boolean — `true` if criterion is always N/A
 - `details`: Free-text reason (up to 200 chars)
 
 ### Layer 2 — Keyword Fallback (Secondary)
@@ -130,14 +131,14 @@ Criteria are organized into **5 categories**. Each criterion belongs to exactly 
 | 3.6 | Provided correct referrals for non-qualifying | Major | 5 | No | "988", "samhsa", "here are resources" |
 | 3.7 | Maintained empathy and professionalism | Minor | 2 | No | "I understand", "thank you for", "that's understandable" |
 
-### Closing (4 criteria, max 14 points)
+### Closing (4 criteria, max 11 points - 3 criteria are always N/A)
 
-| ID | Criterion | Severity | Points | ZTP | Key Pass Triggers |
-|---|---|---|---|---|---|
-| 4.1 | Ended call professionally | Minor | 2 | No | "thank you for calling", "transferring now", "here are the resources" |
-| 4.2 | Documented in Salesforce within 5 min | Major | 5 | No | "documented", "logged", "salesforce", "notes taken" |
-| 4.3 | Applied correct star rating/disposition | Major | 5 | No | "4 stars", "qualified transfer", "correct rating" |
-| 4.4 | Noted follow-up/callback requests | Minor | 2 | No | "callback request", "follow-up noted", "will call back" |
+| ID | Criterion | Severity | Points | ZTP | Key Pass Triggers | Notes |
+|---|---|---|---|---|---|---|
+| 4.1 | Ended call professionally | Minor | 2 | No | "thank you for calling", "transferring now", "here are the resources" | |
+| 4.2 | Documented in Salesforce within 5 min | N/A | N/A | No | N/A | **Always N/A** - requires manual Salesforce verification |
+| 4.3 | Applied correct star rating/disposition | N/A | N/A | No | N/A | **Always N/A** - CTM star rating used instead |
+| 4.4 | Noted follow-up/callback requests | N/A | N/A | No | N/A | **Always N/A** - requires manual Salesforce verification |
 
 ### Compliance (5 criteria, max 21 points)
 
@@ -149,7 +150,7 @@ Criteria are organized into **5 categories**. Each criterion belongs to exactly 
 | 5.4 | Demonstrated soft skills | Minor | 2 | No | "active listening", "clear communication", "professional" |
 | 5.5 | Adhered to SOP/tools | Major | 5 | No | "using CTM", "using ZohoChat", "approved tools" |
 
-**Total possible: 105 points across 25 criteria**
+**Total possible: 107 points across 22 evaluated criteria (3 criteria always N/A)**
 
 ---
 
@@ -188,11 +189,13 @@ Each criterion contributes its point value to its category max. The `calculateBr
 Opening:    2 + 2 + 5 + 5 = 14 pts max
 Probing:    5 + 5 + 5 + 2 + 2 = 19 pts max
 Qualification: 5 + 5 + 5 + 10(ZTP) + 5 + 5 + 2 = 37 pts max
-Closing:    2 + 5 + 5 + 2 = 14 pts max
+Closing:    2 + 0 + 0 + 0 = 2 pts max (4.2, 4.3, 4.4 excluded - always N/A)
 Compliance: 10(ZTP) + 10(ZTP) + 2 + 2 + 5 = 29 pts max
-─────────────────────────────────────────────
-TOTAL MAX:                              113 pts
+──────────────────────────────────────────────────────────────────────
+TOTAL MAX:                              101 pts (107 - 6 from N/A criteria)
 ```
+
+**Note**: Criteria 4.2, 4.3, 4.4 are always N/A and excluded from scoring. They are counted as passed in the criteria count but do not contribute to the score.
 
 ### Step 2 — Overall Score Calculation
 
