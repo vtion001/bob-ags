@@ -1,5 +1,5 @@
 import { CriterionResult, RubricBreakdown, RubricCriterion } from './types'
-import { RUBRIC_CRITERIA } from './rubric'
+import { RUBRIC_CRITERIA, ALWAYS_NA_CRITERIA } from './rubric'
 
 const US_STATES = [
   'alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware',
@@ -64,9 +64,25 @@ export function generateDetails(lower: string, criterion: RubricCriterion): stri
 
 export function evaluateRubric(
   lower: string,
-  aiResults: Record<string, { pass: boolean; details: string }>
+  aiResults: Record<string, { pass: boolean; details: string }>,
+  callType?: string
 ): CriterionResult[] {
   return RUBRIC_CRITERIA.map(criterion => {
+    if (ALWAYS_NA_CRITERIA.includes(criterion.id)) {
+      return {
+        id: criterion.id,
+        criterion: criterion.name,
+        pass: true,
+        na: true,
+        ztp: criterion.ztp,
+        autoFail: criterion.autoFail,
+        details: 'N/A - Requires manual Salesforce verification',
+        deduction: 0,
+        severity: criterion.severity,
+        category: criterion.category,
+      }
+    }
+    
     const aiResult = aiResults[criterion.id]
     const pass = aiResult ? aiResult.pass : keywordMatch(lower, criterion)
     const details = aiResult?.details || generateDetails(lower, criterion)
@@ -96,6 +112,9 @@ export function calculateBreakdown(results: CriterionResult[]) {
   let autoFailed = false
 
   for (const r of results) {
+    if (r.na) {
+      continue
+    }
     const points = r.ztp ? 10 : r.severity === 'Minor' ? 2 : r.severity === 'Major' ? 5 : 0
     const key = r.category === 'Opening' ? 'opening' :
                  r.category === 'Probing' ? 'probing' :

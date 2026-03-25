@@ -18,8 +18,25 @@ Transcript → OpenRouter AI (Claude-3-Haiku) → Keyword Fallback → Rubric Ev
 
 1. **OpenRouter Analysis**: Sends transcript to Claude-3-Haiku via OpenRouter API
 2. **Keyword Fallback**: If AI fails, uses keyword matching against pass/fail phrases
-3. **Rubric Evaluation**: Each criterion is evaluated as PASS or FAIL
+3. **Rubric Evaluation**: Each criterion is evaluated as PASS, FAIL, or N/A
 4. **Score Calculation**: Points are summed and normalized to 0-100 scale
+
+---
+
+## Always-N/A Criteria
+
+The following criteria require **manual Salesforce verification** and cannot be evaluated from call transcripts alone:
+
+| ID | Criterion | Reason |
+|----|-----------|--------|
+| 4.2 | Documented in Salesforce within 5 minutes | Requires manual check in Salesforce |
+| 4.3 | Applied correct star rating/disposition | Star rating sourced from CTM recording metadata |
+| 4.4 | Noted follow-up/callback requests | Requires manual check in Salesforce |
+
+These criteria are:
+- Marked as **N/A** in transcript-based analysis
+- Counted as **passed** in the criteria count (e.g., "22/25 criteria passed")
+- **Excluded** from the score denominator (points not deducted if N/A)
 
 ---
 
@@ -56,14 +73,14 @@ Transcript → OpenRouter AI (Claude-3-Haiku) → Keyword Fallback → Rubric Ev
 | 3.6 | Provided correct referrals for non-qualifying | "988", "samhsa", "here are resources" | "wrong referral", "missing referral" | Major | 5 |
 | 3.7 | Maintained empathy and professionalism | "i understand", "thank you for", "that's understandable", "appreciate you" | "irritation", "no empathy", "dismissive" | Minor | 2 |
 
-### Closing Section (14 points max)
+### Closing Section (14 points max - 11 points from evaluated criteria)
 
 | ID | Criterion | Pass Phrases | Fail Phrases | Severity | Points |
 |----|-----------|--------------|--------------|----------|--------|
 | 4.1 | Ended call professionally | "let me get you", "here are the resources", "thank you for calling", "transferring now" | "abrupt hang-up", "unclear next steps" | Minor | 2 |
-| 4.2 | Documented in Salesforce within 5 minutes | "documented", "logged", "salesforce", "notes taken" | "no documentation", "late documentation" | Major | 5 |
-| 4.3 | Applied correct star rating/disposition | "4 stars", "qualified transfer", "correct rating" | "wrong stars", "incorrect disposition" | Major | 5 |
-| 4.4 | Noted follow-up/callback requests | "callback request", "follow-up noted", "will call back" | "callback omitted" | Minor | 2 |
+| 4.2 | Documented in Salesforce within 5 minutes | N/A | N/A | N/A | N/A |
+| 4.3 | Applied correct star rating/disposition | N/A | N/A | N/A | N/A |
+| 4.4 | Noted follow-up/callback requests | N/A | N/A | N/A | N/A |
 
 ### Compliance Section (26 points max)
 
@@ -91,14 +108,14 @@ Transcript → OpenRouter AI (Claude-3-Haiku) → Keyword Fallback → Rubric Ev
 
 ### Maximum Possible Points
 
-| Section | Max Points |
-|---------|------------|
-| Opening | 14 |
-| Probing | 19 |
-| Qualification | 37 |
-| Closing | 14 |
-| Compliance | 26 |
-| **Total** | **110** |
+| Section | Max Points | Notes |
+|---------|------------|-------|
+| Opening | 14 | |
+| Probing | 19 | |
+| Qualification | 37 | |
+| Closing | 11 | Excludes 4.2, 4.3, 4.4 (always N/A) |
+| Compliance | 26 | |
+| **Total** | **107** | Excludes 3 N/A criteria |
 
 ### Formula
 
@@ -114,6 +131,7 @@ Score = (Earned Points / Maximum Points) × 100
    - Criterion 3.4 (Unqualified Transfer) fails
    - Criterion 5.1 (HIPAA Violation) fails
    - Criterion 5.2 (Medical Advice) fails
+4. **N/A Criteria**: Criteria 4.2, 4.3, 4.4 are always N/A and excluded from scoring
 
 ---
 
@@ -215,24 +233,24 @@ Based on scoring, calls receive automatic tags:
 ## Example Calculations
 
 ### Example 1: Perfect Call (100/100)
-- 25/25 criteria passed
+- 25/25 criteria passed (22 evaluated + 3 N/A)
 - No ZTP violations
-- Score: (110/110) × 100 = **100**
+- Score: (107/107) × 100 = **100**
 
-### Example 2: Call with Minor Issues (78/100)
-- Passed 23/25 criteria
-- Failed 1.4 (Major -5) and 4.2 (Major -5)
-- Score: (100/110) × 100 = **91** (rounded)
+### Example 2: Call with Minor Issues (~91/100)
+- Passed 24/25 criteria (22 evaluated + 3 N/A)
+- Failed 1.4 (Major -5)
+- Score: (102/107) × 100 = **95** (rounded)
 
 ### Example 3: Call with ZTP Violation (0/100)
 - Failed criterion 3.4 (unqualified transfer)
 - ZTP violation triggers auto-fail
 - Score: **0**
 
-### Example 4: Partial Failure (4/100)
+### Example 4: Partial Failure (~4/100)
 - Most criteria failed without AI enhancement
 - Keyword fallback likely matched only a few pass phrases
-- Score: **(4/110) × 100 ≈ 4**
+- Score: **(4/107) × 100 ≈ 4**
 
 ---
 
@@ -268,4 +286,11 @@ Based on scoring, calls receive automatic tags:
 ### If Score Seems Incorrect:
 1. Manually review transcript against rubric
 2. Check if agent used alternative phrasing not in pass phrases
-3. Verify all 25 criteria are being evaluated
+3. Verify criteria 4.2, 4.3, 4.4 are marked N/A (not deducted from score)
+4. Note: N/A criteria are counted as passed but excluded from score denominator
+
+### Understanding N/A in Results:
+- Criteria 4.2, 4.3, 4.4 appear as "N/A - Requires manual Salesforce verification"
+- These do NOT affect the score calculation
+- They ARE counted as passed in the "X/25 criteria passed" count
+- To verify Salesforce documentation, check manually in the CRM system

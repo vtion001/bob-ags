@@ -38,6 +38,7 @@ export interface Call {
   waitTime?: number
   ringTime?: number
   score?: number
+  starRating?: number
   analysis?: CallAnalysis
   destinationNumber?: string
   poolNumber?: string

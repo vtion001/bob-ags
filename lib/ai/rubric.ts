@@ -1,8 +1,10 @@
 import { RubricCriterion } from './types'
 
+export const ALWAYS_NA_CRITERIA = ['4.2', '4.3', '4.4']
+
 export const RUBRIC_CRITERIA: RubricCriterion[] = [
   { id: '1.1', name: 'Used approved greeting', category: 'Opening', severity: 'Minor', deduction: 2, passPhrases: ['hello flyland', 'flyland this is'], failPhrases: ['hi there', 'flyland help line'], ztp: false, autoFail: false },
-  { id: '1.2', name: 'Confirmed caller name and relationship', category: 'Opening', severity: 'Minor', deduction: 2, passPhrases: ["what's your name", 'can i get your name', 'may i have your name'], failPhrases: [], ztp: false, autoFail: false },
+  { id: '1.2', name: 'Confirmed caller name and relationship', category: 'Opening', severity: 'Minor', deduction: 2, passPhrases: ["what's your name", 'can i get your name', 'may i have your name'], failPhrases: [], ztp: false, autoFail: false, naTriggers: ['facility inquiry'] },
   { id: '1.3', name: 'Identified reason for call promptly', category: 'Opening', severity: 'Major', deduction: 5, passPhrases: ['how can i help', 'what brings you', 'reason for your call'], failPhrases: ['assumed reason', 'jumped to questions'], ztp: false, autoFail: false },
   { id: '1.4', name: 'Verified caller location (state)', category: 'Opening', severity: 'Major', deduction: 5, passPhrases: ['what state', 'which state', 'located in', 'state are you'], failPhrases: ['never asks state'], ztp: false, autoFail: false },
   { id: '2.1', name: 'Asked about sober/clean time', category: 'Probing', severity: 'Major', deduction: 5, passPhrases: ['last drink', 'last drug use', 'when was your last', 'how long has it been'], failPhrases: ['how long sober', 'skips time'], ztp: false, autoFail: false },

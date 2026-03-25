@@ -4,6 +4,14 @@ function hasValidAgent(agent: CTMCall['agent']): agent is { id: string; name: st
   return !!agent && !!agent.id && !!agent.name
 }
 
+function scoreToStarRating(score?: number): number | undefined {
+  if (score === undefined || score === null) return undefined
+  if (score >= 75) return 4
+  if (score >= 50) return 3
+  if (score >= 25) return 2
+  return 1
+}
+
 export function transformCall(ctmCall: CTMCall): Call {
   const sale = (ctmCall as unknown as Record<string, unknown>).sale as { score?: number; name?: string } | undefined
   const activityAnalysis = (ctmCall as unknown as Record<string, unknown>).activity_analysis as Record<string, string> | undefined
@@ -35,6 +43,7 @@ export function transformCall(ctmCall: CTMCall): Call {
     waitTime: ctmCall.wait_time,
     ringTime: ctmCall.ring_time,
     score: sale?.score,
+    starRating: scoreToStarRating(sale?.score),
     analysis: activityAnalysis ? {
       score: sale?.score ?? 0,
       sentiment: sale?.score && sale.score >= 75 ? 'positive' : sale?.score && sale.score >= 50 ? 'neutral' : 'negative',
