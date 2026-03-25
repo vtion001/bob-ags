@@ -49,6 +49,7 @@ interface UseCallDetailReturn {
   handleTranscribe: () => Promise<string | null>
   handleAnalyze: () => Promise<boolean>
   setAnalysis: React.Dispatch<React.SetStateAction<AnalysisResult | null>>
+  updateCallNotes: (notes: string) => void
 }
 
 export function useCallDetail(callId: string): UseCallDetailReturn {
@@ -85,6 +86,10 @@ export function useCallDetail(callId: string): UseCallDetailReturn {
       console.warn('Failed to store analysis to Supabase:', err)
     }
   }, [callId])
+
+  const updateCallNotes = useCallback((notes: string) => {
+    setCall(prev => prev ? { ...prev, notes } : null)
+  }, [])
 
   const fetchCallDetails = useCallback(async () => {
     try {
@@ -292,5 +297,6 @@ export function useCallDetail(callId: string): UseCallDetailReturn {
     handleTranscribe,
     handleAnalyze,
     setAnalysis,
+    updateCallNotes,
   }
 }

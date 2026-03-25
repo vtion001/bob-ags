@@ -14,6 +14,7 @@ import {
   AudioPlayerCard,
   ActionButtonsCard,
   NotesDialog,
+  NotesLogDialog,
 } from '@/components/call-detail'
 import { useCallDetail } from '@/hooks/calls/useCallDetail'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,6 +26,7 @@ export default function CallDetailPage() {
   const { role } = useAuth()
   const leftColumnRef = useRef<HTMLDivElement>(null)
   const [notesOpen, setNotesOpen] = useState(false)
+  const [notesLogOpen, setNotesLogOpen] = useState(false)
 
   const {
     call,
@@ -123,6 +125,11 @@ export default function CallDetailPage() {
               <Button variant="secondary" size="sm" className="flex-1 no-print" onClick={() => setNotesOpen(true)}>
                 Notes
               </Button>
+              <Button variant="ghost" size="sm" className="no-print" onClick={() => setNotesLogOpen(true)} title="View Notes History">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </Button>
             </div>
           </div>
 
@@ -179,8 +186,14 @@ export default function CallDetailPage() {
         callId={callId}
         initialNotes={call?.notes || ''}
         onSave={(notes) => {
-          console.log('Notes saved:', notes)
+          updateCallNotes(notes)
         }}
+      />
+
+      <NotesLogDialog
+        open={notesLogOpen}
+        onOpenChange={setNotesLogOpen}
+        callId={callId}
       />
     </>
   )
