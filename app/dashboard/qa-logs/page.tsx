@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -11,38 +11,24 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ClockIcon,
-  UserIcon,
   PhoneIcon,
-  StarIcon,
   RefreshCwIcon,
   FunnelIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface QAOverride {
+interface CallRecord {
   id: string
-  call_id: string
   ctm_call_id: string
-  user_id: string
-  overrides: OverrideItem[]
-  manual_score: number
-  ai_score: number
-  score_change: number
-  override_count: number
+  phone: string
+  direction: string
+  duration: number
+  score: number | null
+  sentiment: string | null
   created_at: string
-  override_user_email: string
+  agent_name: string | null
+  disposition: string | null
 }
-
-interface OverrideItem {
-  criterionId: string
-  criterion: string
-  overridePass: boolean
-  originalPass: boolean
-  overrideNote?: string
-}
-
-type SortField = 'created_at' | 'call_id' | 'override_user_email' | 'ai_score' | 'manual_score' | 'score_change'
-type SortDirection = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
@@ -71,55 +57,40 @@ function formatTimeAgo(dateStr: string) {
   return `${days}d ago`
 }
 
-function ScoreBadge({ score, className }: { score: number; className?: string }) {
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score === null) {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-navy-100 text-navy-600">
+        N/A
+      </span>
+    )
+  }
+  
   let bgClass = 'bg-red-50 text-red-600'
   if (score >= 85) bgClass = 'bg-green-50 text-green-700'
   else if (score >= 70) bgClass = 'bg-emerald-50 text-emerald-600'
   else if (score >= 50) bgClass = 'bg-amber-50 text-amber-600'
 
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', bgClass, className)}>
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', bgClass)}>
       {Math.round(score)}
-    </span>
-  )
-}
-
-function ChangeBadge({ change }: { change: number }) {
-  if (change === 0) return null
-  
-  const isPositive = change > 0
-  return (
-    <span className={cn(
-      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
-      isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-    )}>
-      {isPositive ? '+' : ''}{change}
     </span>
   )
 }
 
 export default function QALogsPage() {
   const { role, isLoading: authLoading } = useAuth()
-  const [overrides, setOverrides] = useState<QAOverride[]>([])
+  const [calls, setCalls] = useState<CallRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   
-  // Pagination
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(25)
-  
-  // Sorting
-  const [sortField, setSortField] = useState<SortField>('created_at')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  
-  // Filters
-  const [showFilters, setShowFilters] = useState(false)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [filterUser, setFilterUser] = useState('')
+  const [sortField, setSortField] = useState<'created_at' | 'score'>('created_at')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  const fetchOverrides = async () => {
+  const fetchCalls = async () => {
     setIsLoading(true)
     setError(null)
     
@@ -129,21 +100,17 @@ export default function QALogsPage() {
         offset: String(page * pageSize),
       })
       
-      if (dateFrom) params.append('dateFrom', dateFrom)
-      if (dateTo) params.append('dateTo', dateTo)
-      if (filterUser) params.append('userId', filterUser)
-      
       const res = await fetch(`/api/qa-overrides?${params}`)
       const data = await res.json()
       
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch overrides')
+        throw new Error(data.error || 'Failed to fetch calls')
       }
       
-      setOverrides(data.overrides || [])
+      setCalls(data.calls || [])
       setTotal(data.total || 0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load QA overrides')
+      setError(err instanceof Error ? err.message : 'Failed to load calls')
     } finally {
       setIsLoading(false)
     }
@@ -151,27 +118,24 @@ export default function QALogsPage() {
 
   useEffect(() => {
     if (!authLoading && (role === 'admin' || role === 'qa')) {
-      fetchOverrides()
+      fetchCalls()
     }
   }, [authLoading, role, page, pageSize])
 
-  const sortedOverrides = useMemo(() => {
-    return [...overrides].sort((a, b) => {
-      let aVal: any = a[sortField]
-      let bVal: any = b[sortField]
-      
-      if (sortField === 'created_at') {
-        aVal = new Date(aVal).getTime()
-        bVal = new Date(bVal).getTime()
-      }
-      
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-      return 0
-    })
-  }, [overrides, sortField, sortDirection])
+  const sortedCalls = [...calls].sort((a, b) => {
+    let aVal = sortField === 'created_at' 
+      ? new Date(a.created_at).getTime() 
+      : (a.score || 0)
+    let bVal = sortField === 'created_at' 
+      ? new Date(b.created_at).getTime() 
+      : (b.score || 0)
+    
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
 
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: 'created_at' | 'score') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
@@ -180,22 +144,9 @@ export default function QALogsPage() {
     }
   }
 
-  const handleApplyFilters = () => {
-    setPage(0)
-    fetchOverrides()
-  }
-
-  const handleResetFilters = () => {
-    setDateFrom('')
-    setDateTo('')
-    setFilterUser('')
-    setPage(0)
-    fetchOverrides()
-  }
-
   const totalPages = Math.ceil(total / pageSize)
 
-  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
+  const SortHeader = ({ field, label }: { field: 'created_at' | 'score'; label: string }) => (
     <th 
       className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider cursor-pointer hover:bg-navy-50 transition-colors"
       onClick={() => handleSort(field)}
@@ -237,7 +188,7 @@ export default function QALogsPage() {
             </div>
             <h2 className="text-xl font-bold text-navy-900">Access Restricted</h2>
             <p className="text-navy-500 max-w-md">
-              QA Logs are only available to QA and Admin users. Please contact your administrator if you believe you need access.
+              QA Logs are only available to QA and Admin users.
             </p>
             <Link href="/dashboard">
               <Button variant="secondary">Return to Dashboard</Button>
@@ -252,65 +203,17 @@ export default function QALogsPage() {
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-navy-900 mb-2">QA Logs</h1>
-        <p className="text-navy-500">Review manual QA overrides and score changes</p>
+        <p className="text-navy-500">Review analyzed calls with AI scoring</p>
       </div>
 
       {error && (
         <Card className="p-4 mb-6 border-red-200 bg-red-50">
           <p className="text-red-600 font-medium">{error}</p>
-          <Button variant="secondary" size="sm" onClick={fetchOverrides} className="mt-2">
+          <Button variant="secondary" size="sm" onClick={fetchCalls} className="mt-2">
             <RefreshCwIcon className="w-4 h-4 mr-1" /> Retry
           </Button>
         </Card>
       )}
-
-      <Card className="p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold text-navy-900">Filters</h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowFilters(!showFilters)}
-              className="md:hidden"
-            >
-              {showFilters ? 'Hide' : 'Show'}
-            </Button>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-navy-500">
-            <span>Total: {total} override{total !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-
-        <div className={cn('grid gap-4 md:grid-cols-4', !showFilters && 'hidden md:grid')}>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Date From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Date To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
-            />
-          </div>
-          <div className="md:col-span-2 flex items-end gap-2">
-            <Button variant="primary" size="sm" onClick={handleApplyFilters}>
-              Apply Filters
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
-              Reset
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -318,15 +221,21 @@ export default function QALogsPage() {
             <thead className="bg-navy-50 border-b border-navy-200">
               <tr>
                 <SortHeader field="created_at" label="Date" />
-                <SortHeader field="call_id" label="Call ID" />
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
-                  Override By
+                  Call ID
                 </th>
-                <SortHeader field="ai_score" label="AI Score" />
-                <SortHeader field="manual_score" label="Manual Score" />
-                <SortHeader field="score_change" label="Change" />
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
-                  Criteria Overridden
+                  Phone
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
+                  Direction
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
+                  Agent
+                </th>
+                <SortHeader field="score" label="AI Score" />
+                <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
+                  Sentiment
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-500 uppercase tracking-wider">
                   Details
@@ -339,63 +248,59 @@ export default function QALogsPage() {
                   <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex justify-center items-center gap-2 text-navy-500">
                       <RefreshCwIcon className="w-5 h-5 animate-spin" />
-                      <span>Loading QA overrides...</span>
+                      <span>Loading analyzed calls...</span>
                     </div>
                   </td>
                 </tr>
-              ) : sortedOverrides.length === 0 ? (
+              ) : sortedCalls.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-navy-500">
-                    No QA overrides found
+                    No analyzed calls found
                   </td>
                 </tr>
               ) : (
-                sortedOverrides.map((override) => (
-                  <tr key={override.id} className="hover:bg-navy-50/50 transition-colors">
+                sortedCalls.map((call) => (
+                  <tr key={call.id} className="hover:bg-navy-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <ClockIcon className="w-4 h-4 text-navy-400" />
                         <div>
-                          <p className="text-sm font-medium text-navy-900">{formatTimeAgo(override.created_at)}</p>
-                          <p className="text-xs text-navy-400">{formatDate(override.created_at)}</p>
+                          <p className="text-sm font-medium text-navy-900">{formatTimeAgo(call.created_at)}</p>
+                          <p className="text-xs text-navy-400">{formatDate(call.created_at)}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <PhoneIcon className="w-4 h-4 text-navy-400" />
-                        <span className="text-sm font-mono text-navy-700">
-                          {override.ctm_call_id || override.call_id}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <UserIcon className="w-4 h-4 text-navy-400" />
-                        <span className="text-sm text-navy-700 truncate max-w-[150px]">
-                          {override.override_user_email}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <ScoreBadge score={override.ai_score || 0} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <ScoreBadge score={override.manual_score || 0} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <ChangeBadge change={override.score_change || 0} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold">
-                        {override.override_count || override.overrides?.length || 0}
+                      <span className="text-sm font-mono text-navy-700">
+                        {call.ctm_call_id || call.id.slice(0, 8)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/calls/${override.call_id}`}>
-                        <Button variant="ghost" size="sm">
-                          View Call
-                        </Button>
+                      <div className="flex items-center gap-1.5">
+                        <PhoneIcon className="w-4 h-4 text-navy-400" />
+                        <span className="text-sm text-navy-700">{call.phone || 'N/A'}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                        call.direction === 'inbound' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                      )}>
+                        {call.direction || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-navy-700">{call.agent_name || 'Unknown'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ScoreBadge score={call.score} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-navy-700 capitalize">{call.sentiment || 'N/A'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/dashboard/calls/${call.id}`}>
+                        <Button variant="ghost" size="sm">View</Button>
                       </Link>
                     </td>
                   </tr>
