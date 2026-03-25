@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -22,6 +22,7 @@ export default function CallDetailPage() {
   const router = useRouter()
   const callId = params.id as string
   const { role } = useAuth()
+  const leftColumnRef = useRef<HTMLDivElement>(null)
 
   const {
     call,
@@ -45,6 +46,10 @@ export default function CallDetailPage() {
       })
     }
   }, [analysis, setAnalysis])
+
+  const handleExport = useCallback(() => {
+    window.print()
+  }, [])
 
   if (isLoading) {
     return (
@@ -84,73 +89,84 @@ export default function CallDetailPage() {
   const hasAnalysis = !!analysis?.rubric_results?.length
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
-      <Button variant="ghost" onClick={() => router.back()} className="mb-6">
-        ← Back
-      </Button>
+    <>
+      <style>{`
+        @media print {
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          .grid { display: block !important; }
+          .space-y-6 > * + * { margin-top: 12px; }
+        }
+      `}</style>
+      <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+        <Button variant="ghost" onClick={() => router.back()} className="mb-6 no-print">
+          ← Back
+        </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-          <CallScoreCard
-            score={analysis?.score || call.score || 0}
-            sentiment={analysis?.sentiment}
-          />
-          <CallerInfoCard call={call} />
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" className="flex-1">
-              Export
-            </Button>
-            <Button variant="secondary" size="sm" className="flex-1">
-              Notes
-            </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div ref={leftColumnRef} className="lg:col-span-1 space-y-6">
+            <CallScoreCard
+              score={analysis?.score || call.score || 0}
+              sentiment={analysis?.sentiment}
+            />
+            <CallerInfoCard call={call} />
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" className="flex-1 no-print" onClick={handleExport}>
+                Export
+              </Button>
+              <Button variant="secondary" size="sm" className="flex-1 no-print">
+                Notes
+              </Button>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <AIAnalysisCard
+              analysis={analysis}
+              isAnalyzing={isAnalyzing}
+              call={call}
+            />
+
+            <QAAnalysisCard
+              rubricResults={analysis?.rubric_results}
+              rubricBreakdown={analysis?.rubric_breakdown}
+              isAnalyzing={isAnalyzing}
+              hasTranscript={hasTranscript}
+              onRunAnalysis={async () => { await handleAnalyze() }}
+            />
+
+            <QAManualOverrideCard
+              callId={callId}
+              rubricResults={analysis?.rubric_results}
+              rubricBreakdown={analysis?.rubric_breakdown}
+              onOverrideSaved={(overrides) => {
+                console.log('Overrides saved:', overrides)
+              }}
+            />
+
+            <AudioPlayerCard
+              audioUrl={call.recordingUrl || ''}
+              callId={call.id}
+              callStatus={call.status}
+            />
+
+            <TranscriptCard
+              transcript={transcript}
+              transcriptError={transcriptError}
+              isTranscribing={isTranscribing}
+              hasRecording={!!call.recordingUrl}
+              onTranscribe={handleTranscribe}
+            />
+
+            <ActionButtonsCard
+              onCreateTask={() => console.log('Create task for call:', callId)}
+              onAddToSalesforce={() => console.log('Add to Salesforce:', callId)}
+              onScheduleFollowUp={() => console.log('Schedule follow-up for call:', callId)}
+            />
           </div>
         </div>
-
-        <div className="lg:col-span-2 space-y-6">
-          <AIAnalysisCard
-            analysis={analysis}
-            isAnalyzing={isAnalyzing}
-            call={call}
-          />
-
-          <QAAnalysisCard
-            rubricResults={analysis?.rubric_results}
-            rubricBreakdown={analysis?.rubric_breakdown}
-            isAnalyzing={isAnalyzing}
-            hasTranscript={hasTranscript}
-            onRunAnalysis={async () => { await handleAnalyze() }}
-          />
-
-          <QAManualOverrideCard
-            callId={callId}
-            rubricResults={analysis?.rubric_results}
-            rubricBreakdown={analysis?.rubric_breakdown}
-            onOverrideSaved={(overrides) => {
-              console.log('Overrides saved:', overrides)
-            }}
-          />
-
-          <AudioPlayerCard
-            audioUrl={call.recordingUrl || ''}
-            callId={call.id}
-            callStatus={call.status}
-          />
-
-          <TranscriptCard
-            transcript={transcript}
-            transcriptError={transcriptError}
-            isTranscribing={isTranscribing}
-            hasRecording={!!call.recordingUrl}
-            onTranscribe={handleTranscribe}
-          />
-
-          <ActionButtonsCard
-            onCreateTask={() => console.log('Create task for call:', callId)}
-            onAddToSalesforce={() => console.log('Add to Salesforce:', callId)}
-            onScheduleFollowUp={() => console.log('Schedule follow-up for call:', callId)}
-          />
-        </div>
       </div>
-    </div>
+    </>
   )
 }
