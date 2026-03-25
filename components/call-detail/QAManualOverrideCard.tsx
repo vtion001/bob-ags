@@ -115,7 +115,7 @@ export default function QAManualOverrideCard({
         [id]: {
           ...current,
           overridden: true,
-          overridePass: !current.overridePass,
+          overridePass: current.overridden ? !current.overridePass : !current.pass,
         }
       }
       
