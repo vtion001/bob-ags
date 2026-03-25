@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     console.log('[Bulk Sync] Starting bulk sync for user:', user.id)
 
     const ctmClient = new CTMClient()
-    const allCalls = await ctmClient.calls.getCalls({ limit: 5000, hours: 8760 })
+    const allCalls = await ctmClient.calls.getAllCalls({ hours: 8760 })
 
     console.log(`[Bulk Sync] Total calls fetched from CTM: ${allCalls.length}`)
 
