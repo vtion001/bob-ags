@@ -13,60 +13,28 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
-    const userId = searchParams.get('userId')
-    const dateFrom = searchParams.get('dateFrom')
-    const dateTo = searchParams.get('dateTo')
 
-    let query = supabase
-      .from('qa_overrides')
-      .select(`
-        id,
-        call_id,
-        ctm_call_id,
-        user_id,
-        overrides,
-        manual_score,
-        ai_score,
-        score_change,
-        override_count,
-        created_at,
-        auth_user:user_id (email)
-      `)
+    // Query calls with rubric_results (analyzed calls)
+    const { data, error, count } = await supabase
+      .from('calls')
+      .select('*', { count: 'exact' })
+      .not('rubric_results', 'is', null)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (userId) {
-      query = query.eq('user_id', userId)
-    }
-
-    if (dateFrom) {
-      query = query.gte('created_at', dateFrom)
-    }
-
-    if (dateTo) {
-      query = query.lte('created_at', dateTo)
-    }
-
-    const { data, error, count } = await query
-
     if (error) {
-      console.error('Failed to fetch QA overrides:', error)
-      return NextResponse.json({ error: 'Failed to fetch overrides' }, { status: 500 })
+      console.error('Failed to fetch analyzed calls:', error)
+      return NextResponse.json({ error: 'Failed to fetch calls' }, { status: 500 })
     }
-
-    const formattedData = data?.map(override => ({
-      ...override,
-      override_user_email: (override as any).auth_user?.email || 'Unknown',
-    })) || []
 
     return NextResponse.json({ 
-      overrides: formattedData,
-      total: count || formattedData.length,
+      calls: data || [],
+      total: count || 0,
       limit,
       offset
     })
   } catch (err) {
-    console.error('QA overrides API error:', err)
+    console.error('QA analysis API error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
