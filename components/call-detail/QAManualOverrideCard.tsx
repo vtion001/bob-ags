@@ -188,10 +188,18 @@ export default function QAManualOverrideCard({
 
   return (
     <Card className="p-0 overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setExpanded(!expanded)
+          }
+        }}
         className={cn(
-          "w-full p-4 flex items-center justify-between transition-colors",
+          "w-full p-4 flex items-center justify-between transition-colors cursor-pointer",
           hasChanges ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-navy-50"
         )}
       >
@@ -253,7 +261,7 @@ export default function QAManualOverrideCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
-      </button>
+      </div>
 
       {!canOverride && (
         <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
