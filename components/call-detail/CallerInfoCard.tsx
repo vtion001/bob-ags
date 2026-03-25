@@ -73,6 +73,12 @@ export default function CallerInfoCard({ call, formatDuration }: CallerInfoCardP
             </p>
           </div>
         )}
+        {call.notes && (
+          <div>
+            <p className="text-xs text-navy-400 uppercase">Notes</p>
+            <p className="text-navy-900 mt-1 whitespace-pre-wrap">{call.notes}</p>
+          </div>
+        )}
       </div>
     </Card>
   )

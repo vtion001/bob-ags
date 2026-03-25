@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -13,6 +13,7 @@ import {
   TranscriptCard,
   AudioPlayerCard,
   ActionButtonsCard,
+  NotesDialog,
 } from '@/components/call-detail'
 import { useCallDetail } from '@/hooks/calls/useCallDetail'
 import { useAuth } from '@/contexts/AuthContext'
@@ -23,6 +24,7 @@ export default function CallDetailPage() {
   const callId = params.id as string
   const { role } = useAuth()
   const leftColumnRef = useRef<HTMLDivElement>(null)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const {
     call,
@@ -36,6 +38,7 @@ export default function CallDetailPage() {
     handleTranscribe,
     handleAnalyze,
     setAnalysis,
+    updateCallNotes,
   } = useCallDetail(callId)
 
   const handleOverrideSaved = useCallback((overrides: any[], manualScore: number) => {
@@ -48,8 +51,10 @@ export default function CallDetailPage() {
   }, [analysis, setAnalysis])
 
   const handleExport = useCallback(() => {
+    const agentName = call?.agent?.name?.split(' - ')[0] || 'Unknown'
+    document.title = `${agentName} - QA Analysis Report`
     window.print()
-  }, [])
+  }, [call?.agent?.name])
 
   if (isLoading) {
     return (
@@ -115,7 +120,7 @@ export default function CallDetailPage() {
               <Button variant="secondary" size="sm" className="flex-1 no-print" onClick={handleExport}>
                 Export
               </Button>
-              <Button variant="secondary" size="sm" className="flex-1 no-print">
+              <Button variant="secondary" size="sm" className="flex-1 no-print" onClick={() => setNotesOpen(true)}>
                 Notes
               </Button>
             </div>
@@ -167,6 +172,16 @@ export default function CallDetailPage() {
           </div>
         </div>
       </div>
+
+      <NotesDialog
+        open={notesOpen}
+        onOpenChange={setNotesOpen}
+        callId={callId}
+        initialNotes={call?.notes || ''}
+        onSave={(notes) => {
+          console.log('Notes saved:', notes)
+        }}
+      />
     </>
   )
 }
