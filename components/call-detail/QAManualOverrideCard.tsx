@@ -137,6 +137,7 @@ export default function QAManualOverrideCard({
   }
 
   const saveOverrides = async () => {
+    if (isSaving) return
     setIsSaving(true)
     try {
       const overrideList = Object.values(overrides).filter(o => o.overridden)
@@ -156,13 +157,15 @@ export default function QAManualOverrideCard({
         }),
       })
 
+      setShowConfirm(false)
+      setHasChanges(false)
+      
       if (res.ok) {
-        setHasChanges(false)
-        setShowConfirm(false)
         onOverrideSaved?.(Object.values(overrides))
       }
     } catch (err) {
       console.error('Failed to save overrides:', err)
+      setShowConfirm(false)
     } finally {
       setIsSaving(false)
     }
@@ -402,8 +405,14 @@ export default function QAManualOverrideCard({
       )}
 
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="max-w-md mx-4 p-6">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowConfirm(false)
+          }}
+        >
+          <Card className="max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
             <h4 className="text-lg font-bold text-navy-900 mb-2">Confirm Override Changes</h4>
             <p className="text-sm text-navy-600 mb-4">
               You are about to override {overrideCount} criteria. This will recalculate the call score from {originalScore} to {manualScore}.
@@ -417,7 +426,14 @@ export default function QAManualOverrideCard({
               <Button variant="secondary" onClick={() => setShowConfirm(false)}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={saveOverrides} isLoading={isSaving}>
+              <Button 
+                variant="primary" 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  saveOverrides()
+                }} 
+                isLoading={isSaving}
+              >
                 Save Changes
               </Button>
             </div>
