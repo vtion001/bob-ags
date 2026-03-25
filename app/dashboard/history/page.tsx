@@ -3,9 +3,22 @@
 import React, { useState } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import CallTable from '@/components/CallTable'
 import { useCallHistory } from '@/hooks/dashboard/useCallHistory'
 import { HistoryFilters, HistoryStats } from '@/components/history'
+
+interface SyncPreview {
+  callsAvailable: number
+  callsInSupabase: number
+}
 
 export default function HistoryPage() {
   const {
@@ -35,8 +48,27 @@ export default function HistoryPage() {
   } = useCallHistory()
 
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
+  const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
-  const handleBulkSync = async () => {
+  const handleBulkSyncClick = async () => {
+    setIsLoadingPreview(true)
+    setShowSyncDialog(true)
+    try {
+      const res = await fetch('/api/ctm/calls/bulk-sync', { method: 'GET' })
+      const data = await res.json()
+      setSyncPreview(data)
+    } catch (err) {
+      console.error('Failed to get sync preview:', err)
+      setSyncPreview({ callsAvailable: 0, callsInSupabase: 0 })
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const handleConfirmBulkSync = async () => {
+    setShowSyncDialog(false)
     setIsBulkSyncing(true)
     try {
       const res = await fetch('/api/ctm/calls/bulk-sync', { method: 'POST' })
@@ -92,7 +124,7 @@ export default function HistoryPage() {
           onAnalyzedOnlyChange={setAnalyzedOnly}
           onRefresh={handleRefresh}
           onSearch={handleSearch}
-          onBulkSync={handleBulkSync}
+          onBulkSync={handleBulkSyncClick}
           isRefreshing={isRefreshing}
           isSearching={isSearching}
           isBulkSyncing={isBulkSyncing}
@@ -122,6 +154,53 @@ export default function HistoryPage() {
           Showing {filteredCalls.length} calls
         </div>
       )}
+
+      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Sync</DialogTitle>
+            <DialogDescription>
+              {isLoadingPreview ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
+                  Loading sync preview...
+                </span>
+              ) : syncPreview ? (
+                <>
+                  This will sync all calls from CallTrackingMetrics (CTM) to Supabase.
+                  <br /><br />
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Calls available in CTM:</span>
+                      <span className="font-semibold">{syncPreview.callsAvailable.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Calls currently in Supabase:</span>
+                      <span className="font-semibold">{syncPreview.callsInSupabase.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span>New calls to add:</span>
+                      <span className="font-semibold text-green-600">
+                        {Math.max(0, syncPreview.callsAvailable - syncPreview.callsInSupabase).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                'Failed to load sync preview'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowSyncDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmBulkSync} disabled={isLoadingPreview || !syncPreview}>
+              Sync Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

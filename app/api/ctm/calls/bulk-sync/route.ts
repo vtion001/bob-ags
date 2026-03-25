@@ -3,6 +3,32 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { CTMClient } from '@/lib/ctm'
 import { invalidateCache } from '@/lib/api/cache'
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createServerSupabase(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const ctmClient = new CTMClient()
+    const allCalls = await ctmClient.calls.getAllCalls({ hours: 8760 })
+
+    const { count: supabaseCount } = await supabase
+      .from('calls')
+      .select('*', { count: 'exact', head: true })
+
+    return NextResponse.json({
+      callsAvailable: allCalls.length,
+      callsInSupabase: supabaseCount || 0,
+    })
+  } catch (error) {
+    console.error('[Bulk Sync Preview] Error:', error)
+    return NextResponse.json({ error: 'Failed to get preview' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabase(request)
