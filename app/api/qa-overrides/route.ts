@@ -14,13 +14,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // Query calls with rubric_results (analyzed calls)
-    const { data, error, count } = await supabase
+    // Get total count (RLS doesn't affect aggregate queries the same way)
+    const { count } = await supabase
       .from('calls')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .not('rubric_results', 'is', null)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+
+    // Use SECURITY DEFINER function to bypass RLS and join agent_profiles
+    const { data, error } = await supabase
+      .rpc('get_analyzed_calls', { p_limit: limit, p_offset: offset })
 
     if (error) {
       console.error('Failed to fetch analyzed calls:', error)

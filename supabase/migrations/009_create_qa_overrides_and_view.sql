@@ -109,3 +109,47 @@ CREATE POLICY "Users can view own calls in qa_analysis" ON public.qa_analysis_vi
 -- Comments
 COMMENT ON VIEW public.qa_analysis_view IS 'Combined view of calls with latest QA overrides';
 COMMENT ON TABLE public.qa_overrides IS 'Stores manual QA overrides made by QA and Admin users';
+
+-- SECURITY DEFINER function to get analyzed calls with agent names
+-- This bypasses RLS to allow joining with agent_profiles
+CREATE OR REPLACE FUNCTION get_analyzed_calls(p_limit INT DEFAULT 100, p_offset INT DEFAULT 0)
+RETURNS TABLE (
+  id UUID,
+  ctm_call_id TEXT,
+  phone TEXT,
+  direction TEXT,
+  duration INT,
+  score INT,
+  sentiment TEXT,
+  created_at TIMESTAMPTZ,
+  agent_id TEXT,
+  agent_name TEXT,
+  rubric_results JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    c.id,
+    c.ctm_call_id,
+    c.phone,
+    c.direction,
+    c.duration,
+    c.score,
+    c.sentiment,
+    c.created_at,
+    c.agent_id,
+    COALESCE(ap.name, c.agent_name)::TEXT AS agent_name,
+    c.rubric_results
+  FROM public.calls c
+  LEFT JOIN public.agent_profiles ap ON ap.agent_id = c.agent_id
+  WHERE c.rubric_results IS NOT NULL
+  ORDER BY c.created_at DESC
+  LIMIT p_limit
+  OFFSET p_offset;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_analyzed_calls TO authenticated;

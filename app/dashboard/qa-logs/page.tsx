@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
@@ -79,6 +79,7 @@ function ScoreBadge({ score }: { score: number | null }) {
 }
 
 export default function QALogsPage() {
+  const router = useRouter()
   const { role, isLoading: authLoading } = useAuth()
   const [calls, setCalls] = useState<CallRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -190,9 +191,9 @@ export default function QALogsPage() {
             <p className="text-navy-500 max-w-md">
               QA Logs are only available to QA and Admin users.
             </p>
-            <Link href="/dashboard">
-              <Button variant="secondary">Return to Dashboard</Button>
-            </Link>
+            <Button variant="secondary" onClick={() => router.push('/dashboard')}>
+              Return to Dashboard
+            </Button>
           </div>
         </Card>
       </div>
@@ -299,9 +300,9 @@ export default function QALogsPage() {
                       <span className="text-sm text-navy-700 capitalize">{call.sentiment || 'N/A'}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/calls/${call.id}`}>
-                        <Button variant="ghost" size="sm">View</Button>
-                      </Link>
+                      <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/calls/${call.id}`)}>
+                        View
+                      </Button>
                     </td>
                   </tr>
                 ))
