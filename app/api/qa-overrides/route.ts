@@ -13,29 +13,41 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Return empty qa-overrides - stored in Supabase
-    const { data, error } = await supabase
-      .from('qa_overrides')
-      .select('*')
-      .limit(100)
+    const { searchParams } = new URL(request.url)
+    const limit = parseInt(searchParams.get('limit') || '25', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
+
+    // Fetch calls that have been analyzed (have score/rubric_results)
+    // This matches what the QA Logs page expects
+    const { data, error, count } = await supabase
+      .from('calls')
+      .select('id, ctm_call_id, phone, direction, duration, score, sentiment, created_at, agent_name, disposition', { count: 'exact' })
+      .not('score', 'is', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
     if (error) {
-      console.error('Error fetching QA overrides:', error)
+      console.error('Error fetching calls for QA logs:', error)
       return NextResponse.json({
-        success: true,
-        qa_overrides: []
+        success: false,
+        error: error.message,
+        calls: [],
+        total: 0
       })
     }
 
     return NextResponse.json({
       success: true,
-      qa_overrides: data || []
+      calls: data || [],
+      total: count || 0
     })
   } catch (error) {
-    console.error('QA overrides error:', error)
+    console.error('QA logs error:', error)
     return NextResponse.json({
-      success: true,
-      qa_overrides: []
+      success: false,
+      error: 'Internal server error',
+      calls: [],
+      total: 0
     })
   }
 }
