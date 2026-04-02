@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LARAVEL_API_URL } from '@/lib/api/proxy'
-
-const LARAVEL_AUTH_URL = LARAVEL_API_URL.replace('/api', '')
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,26 +13,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Forward to Laravel auth endpoint
-    const response = await fetch(`${LARAVEL_AUTH_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
+    const supabase = await createServerSupabase(request)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
+    if (error) {
       return NextResponse.json(
-        { error: data.error || 'Login failed' },
-        { status: response.status }
+        { error: error.message || 'Login failed' },
+        { status: 401 }
       )
     }
 
-    // Return Laravel's response (includes access_token, user, etc.)
-    return NextResponse.json(data)
+    return NextResponse.json({
+      success: true,
+      user: data.user,
+      session: data.session
+    })
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(

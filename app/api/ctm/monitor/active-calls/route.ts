@@ -1,10 +1,23 @@
-import { NextRequest } from 'next/server'
-import { proxyToLaravel } from '@/lib/api/proxy'
+import { NextRequest, NextResponse } from 'next/server'
+import { CallsService } from '@/lib/ctm/services/calls'
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const queryString = searchParams.toString()
-  const endpoint = queryString ? `/ctm/monitor/active-calls?${queryString}` : `/ctm/monitor/active-calls`
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const minutes = parseInt(searchParams.get('minutes') || '5', 10)
 
-  return proxyToLaravel(endpoint, request)
+    const callsService = new CallsService()
+    const calls = await callsService.getRecentCalls(minutes)
+
+    return NextResponse.json({
+      success: true,
+      calls
+    })
+  } catch (error) {
+    console.error('Error fetching active calls:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch active calls from CallTrackingMetrics' },
+      { status: 502 }
+    )
+  }
 }

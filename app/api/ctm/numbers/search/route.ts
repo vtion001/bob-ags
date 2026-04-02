@@ -1,9 +1,45 @@
-import { NextRequest } from 'next/server'
-import { proxyToLaravel } from '@/lib/api/proxy'
+import { NextRequest, NextResponse } from 'next/server'
+import { NumbersService } from '@/lib/ctm/services/numbers'
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const queryString = searchParams.toString()
-  const endpoint = queryString ? `/ctm/numbers/search?${queryString}` : '/ctm/numbers/search'
-  return proxyToLaravel(endpoint, request)
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const numbersService = new NumbersService()
+
+    const params: {
+      country?: string
+      searchby?: 'area' | 'address' | 'zip'
+      areacode?: string
+      address?: string
+      pattern?: string
+    } = {}
+
+    const country = searchParams.get('country')
+    if (country) params.country = country
+
+    const searchby = searchParams.get('searchby') as 'area' | 'address' | 'zip' | null
+    if (searchby) params.searchby = searchby
+
+    const areacode = searchParams.get('areacode')
+    if (areacode) params.areacode = areacode
+
+    const address = searchParams.get('address')
+    if (address) params.address = address
+
+    const pattern = searchParams.get('pattern')
+    if (pattern) params.pattern = pattern
+
+    const data = await numbersService.searchNumbers(params)
+
+    return NextResponse.json({
+      success: true,
+      ...data
+    })
+  } catch (error) {
+    console.error('Error searching CTM numbers:', error)
+    return NextResponse.json(
+      { error: 'Failed to search numbers in CallTrackingMetrics' },
+      { status: 502 }
+    )
+  }
 }

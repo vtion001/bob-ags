@@ -1,10 +1,83 @@
-import { NextRequest } from 'next/server'
-import { proxyToLaravel } from '@/lib/api/proxy'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
-  return proxyToLaravel('/calls/qa-override', request)
+  try {
+    const supabase = await createServerSupabase(request)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Return empty qa-overrides - stored in Supabase
+    const { data, error } = await supabase
+      .from('qa_overrides')
+      .select('*')
+      .limit(100)
+
+    if (error) {
+      console.error('Error fetching QA overrides:', error)
+      return NextResponse.json({
+        success: true,
+        qa_overrides: []
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      qa_overrides: data || []
+    })
+  } catch (error) {
+    console.error('QA overrides error:', error)
+    return NextResponse.json({
+      success: true,
+      qa_overrides: []
+    })
+  }
 }
 
 export async function POST(request: NextRequest) {
-  return proxyToLaravel('/calls/qa-override', request, 'POST')
+  try {
+    const supabase = await createServerSupabase(request)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+
+    // Store QA override in Supabase
+    const { data, error } = await supabase
+      .from('qa_overrides')
+      .insert(body)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating QA override:', error)
+      return NextResponse.json(
+        { error: 'Failed to create QA override' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      qa_override: data
+    })
+  } catch (error) {
+    console.error('QA override error:', error)
+    return NextResponse.json(
+      { error: 'Failed to create QA override' },
+      { status: 500 }
+    )
+  }
 }
