@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user permissions from Supabase
     const { data: userRole, error } = await supabase
       .from('user_roles')
       .select('role, permissions')
@@ -41,10 +42,11 @@ export async function GET(request: NextRequest) {
       permissions: userRole.permissions || {}
     })
   } catch (error) {
-    console.error('Error fetching user permissions:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch user permissions' },
-      { status: 500 }
-    )
+    console.error('Permissions error:', error)
+    return NextResponse.json({
+      success: true,
+      role: 'viewer',
+      permissions: {}
+    })
   }
 }
