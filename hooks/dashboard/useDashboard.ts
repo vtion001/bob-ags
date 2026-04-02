@@ -126,8 +126,8 @@ export function useDashboard(): UseDashboardReturn {
         ? Math.max(1, Math.ceil((new Date(customEndDate).getTime() - new Date(customStartDate).getTime()) / (1000 * 60 * 60)))
         : getHoursFromRange(timeRange)
       const agentParam = options.manualOverride?.agentUid
-        ? `&agentId=${options.manualOverride.agentUid}`
-        : selectedAgentUid ? `&agentId=${selectedAgentUid}` : ''
+        ? `&agent_id=${options.manualOverride.agentUid}`
+        : selectedAgentUid ? `&agent_id=${selectedAgentUid}` : ''
 
       const [cacheRes, ctmRes] = await Promise.all([
         fetch(`/api/ctm/dashboard/stats?cacheOnly=true&hours=${Math.min(hours, 2160)}${agentParam}`),

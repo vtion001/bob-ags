@@ -146,7 +146,7 @@ export function useCallHistory(options: UseCallHistoryOptions = {}): UseCallHist
     }
 
     try {
-      const agentParam = agentIdFilter ? `&agentId=${encodeURIComponent(agentIdFilter)}` : ''
+      const agentParam = agentIdFilter ? `&agent_id=${encodeURIComponent(agentIdFilter)}` : ''
 
       if (mode === 'initial') {
         const cacheRes = await fetch(`/api/calls?cacheOnly=true&hours=168&limit=200${agentParam}`)
