@@ -93,21 +93,12 @@ export function useCallDetail(callId: string): UseCallDetailReturn {
 
   const fetchCallDetails = useCallback(async () => {
     try {
-      const res = await fetch(`/api/calls?ctmCallId=${callId}&cacheOnly=true`)
+      // Fetch directly from CTM API to get the correct call by ID
+      const res = await fetch(`/api/ctm/calls/${callId}`)
+      if (!res.ok) return null
       const data = await res.json()
-
-      if (data.calls && data.calls.length > 0) {
-        const c = data.calls[0]
-        if (c.analysis) {
-          c.score = c.analysis.score
-          c.sentiment = c.analysis.sentiment
-          c.summary = c.analysis.summary
-          c.tags = c.analysis.tags
-          c.disposition = c.analysis.disposition
-        }
-        return c
-      }
-      return null
+      if (!data.call) return null
+      return data.call
     } catch {
       return null
     }

@@ -138,6 +138,7 @@ export default function CallDetailPage() {
               analysis={analysis}
               isAnalyzing={isAnalyzing}
               call={call}
+              onAnalyze={handleAnalyze}
             />
 
             <QAAnalysisCard

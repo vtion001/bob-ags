@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import {
@@ -14,6 +14,7 @@ import {
 import CallTable from '@/components/CallTable'
 import { useCallHistory } from '@/hooks/dashboard/useCallHistory'
 import { HistoryFilters, HistoryStats } from '@/components/history'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SyncPreview {
   callsAvailable: number
@@ -21,6 +22,7 @@ interface SyncPreview {
 }
 
 export default function HistoryPage() {
+  const { isAdmin, ctmAgentId } = useAuth()
   const {
     filteredCalls,
     agentProfiles,
@@ -51,6 +53,13 @@ export default function HistoryPage() {
   const [showSyncDialog, setShowSyncDialog] = useState(false)
   const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+
+  // Auto-filter to user's assigned agent for non-admin users
+  useEffect(() => {
+    if (!isAdmin && ctmAgentId && agentIdFilter === '') {
+      setAgentIdFilter(ctmAgentId)
+    }
+  }, [isAdmin, ctmAgentId, agentIdFilter, setAgentIdFilter])
 
   const handleBulkSyncClick = async () => {
     setIsLoadingPreview(true)

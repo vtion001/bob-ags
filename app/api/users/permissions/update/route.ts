@@ -18,9 +18,13 @@ function isDevUser(request: NextRequest): boolean {
 export async function GET(request: NextRequest) {
   try {
     let userId: string | null = null
+    let isAdminUser = false
+    let userEmail: string | null = null
 
     if (isDevUser(request)) {
       userId = DEV_BYPASS_UID
+      isAdminUser = true
+      userEmail = 'agsdev@allianceglobalsolutions.com'
     } else {
       const supabase = await createServerSupabase(request)
       const { data: { user } } = await supabase.auth.getUser()
@@ -31,11 +35,47 @@ export async function GET(request: NextRequest) {
         )
       }
       userId = user.id
+      userEmail = user.email || null
+
+      // Check if current user is admin
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single()
+
+      isAdminUser = userRole?.role === 'admin'
     }
 
     const supabase = await createServerSupabase(request)
 
-    // Get user permissions from Supabase
+    // If admin, return all users with their roles using service role key to bypass RLS
+    if (isAdminUser) {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+      )
+
+      const { data: allRoles, error: allRolesError } = await supabaseAdmin
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (allRolesError) {
+        console.error('Error fetching all roles:', allRolesError)
+      }
+
+      return NextResponse.json({
+        success: true,
+        role: 'admin',
+        roles: allRoles || [],
+        email: userEmail,
+      })
+    }
+
+    // Non-admin: return only current user's permissions
     const { data: userRole, error } = await supabase
       .from('user_roles')
       .select('role, permissions')
@@ -61,7 +101,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       role: userRole.role,
-      permissions: userRole.permissions || {}
+      permissions: userRole.permissions || {},
+      email: userEmail,
     })
   } catch (error) {
     console.error('Permissions error:', error)

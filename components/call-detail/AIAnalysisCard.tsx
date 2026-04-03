@@ -13,6 +13,7 @@ interface AnalysisResult {
 interface AIAnalysisCardProps {
   analysis: AnalysisResult | null
   isAnalyzing: boolean
+  onAnalyze?: () => void
   call?: {
     callerNumber?: string
     city?: string
@@ -21,7 +22,7 @@ interface AIAnalysisCardProps {
   }
 }
 
-export default function AIAnalysisCard({ analysis, isAnalyzing, call }: AIAnalysisCardProps) {
+export default function AIAnalysisCard({ analysis, isAnalyzing, onAnalyze, call }: AIAnalysisCardProps) {
   const cleanDisposition = (disposition: string) => {
     if (disposition === '-------- dup unq --------' || !disposition) {
       return null
@@ -39,10 +40,30 @@ export default function AIAnalysisCard({ analysis, isAnalyzing, call }: AIAnalys
           <svg className="w-10 h-10 text-navy-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
-          <p className="text-navy-600 font-medium mb-1">No analysis available</p>
-          <p className="text-navy-400 text-sm">
-            Analysis requires a recording to be available. Once CTM processes the call recording, analysis will be automatically generated.
-          </p>
+          {isAnalyzing ? (
+            <>
+              <p className="text-navy-600 font-medium mb-1">Analyzing call...</p>
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <div className="w-4 h-4 border-2 border-navy-300 border-t-navy-600 rounded-full animate-spin" />
+                <span className="text-navy-400 text-sm">Processing with AI</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-navy-600 font-medium mb-1">No analysis available</p>
+              <p className="text-navy-400 text-sm mb-4">
+                Analysis requires a recording to be available. Once CTM processes the call recording, analysis will be automatically generated.
+              </p>
+              {onAnalyze && (
+                <button
+                  onClick={onAnalyze}
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Run AI Analysis
+                </button>
+              )}
+            </>
+          )}
         </div>
       </Card>
     )

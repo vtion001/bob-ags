@@ -189,7 +189,11 @@ export function useDashboard(): UseDashboardReturn {
       if (cacheData?.stats) setStats(cacheData.stats)
       if (cacheData?.recentCalls) setRecentCalls(cacheData.recentCalls)
       if (ctmData?.stats && !ctmData.fromCache) {
-        setStats(ctmData.stats)
+        setStats(prev => ({
+          ...prev,
+          ...ctmData.stats,
+          kpi: prev.kpi,
+        }))
         setRecentCalls(ctmData.recentCalls || [])
       }
     } catch (err) {
