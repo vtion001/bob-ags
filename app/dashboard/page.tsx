@@ -4,7 +4,7 @@ import React from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import { useDashboard } from '@/hooks/dashboard/useDashboard'
-import { DashboardHeader, DashboardStats, DashboardRecentCalls } from '@/components/dashboard'
+import { DashboardHeader, DashboardKPIs } from '@/components/dashboard'
 import AgentAssignmentWarning from '@/components/dashboard/AgentAssignmentWarning'
 
 export default function DashboardPage() {
@@ -23,7 +23,6 @@ export default function DashboardPage() {
     timeRange,
     setTimeRange,
     stats,
-    recentCalls,
     error,
     liveMeta,
     userEmail,
@@ -94,29 +93,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <AgentAssignmentWarning 
-        assignedAgentId={liveMeta?.assignedAgentId} 
+      <AgentAssignmentWarning
+        assignedAgentId={liveMeta?.assignedAgentId}
         assignedGroupId={liveMeta?.assignedGroupId}
-        isAdmin={isAdmin} 
-      />
-
-      <DashboardStats
-        totalCalls={stats.totalCalls}
-        analyzed={stats.analyzed}
-        hotLeads={stats.hotLeads}
-        avgScore={stats.avgScore}
-      />
-
-      <DashboardRecentCalls
-        calls={recentCalls}
         isAdmin={isAdmin}
-        assignedLabel={assignedLabel}
-        userGroups={userGroups}
-        selectedGroup={selectedGroup}
-        allAgents={allAgents}
-        selectedAgent={selectedAgent}
-        timeRange={timeRange}
       />
+
+      {stats.kpi && (
+        <DashboardKPIs stats={stats.kpi} />
+      )}
     </div>
   )
 }

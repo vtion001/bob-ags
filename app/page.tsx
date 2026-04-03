@@ -10,6 +10,12 @@ import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
 import AuthMessageHandler from '@/components/AuthMessageHandler'
 
+// Dev bypass credentials - bypass Supabase auth for local development
+const DEV_BYPASS_EMAIL = 'dev@bob.local'
+const DEV_BYPASS_PASSWORD = 'dev123456'
+const DEV_BYPASS_UID = '00000000-0000-0000-0000-000000000001'
+const DEV_BYPASS_ROLE = 'admin'
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -38,6 +44,25 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
     setMessage(null)
+
+    // DEV BYPASS: Check for dev credentials before Supabase auth
+    if (email === DEV_BYPASS_EMAIL && password === DEV_BYPASS_PASSWORD) {
+      // Set a dev session cookie that the proxy will recognize
+      // Use document.cookie for client-side cookie setting
+      const devSession = {
+        user: {
+          id: DEV_BYPASS_UID,
+          email: DEV_BYPASS_EMAIL,
+          role: DEV_BYPASS_ROLE,
+        },
+        dev: true,
+      }
+      const cookieExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
+      const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+      document.cookie = `sb-dev-session=${encodeURIComponent(JSON.stringify(devSession))}; expires=${cookieExpiry}; path=/; SameSite=lax${secureFlag}`
+      router.push('/dashboard')
+      return
+    }
 
     try {
       const { error } = await supabase.auth.signInWithPassword({

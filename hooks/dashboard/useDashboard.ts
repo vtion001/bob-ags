@@ -15,11 +15,47 @@ export interface UserGroup {
   userIds: number[]
 }
 
+export interface ScoreDistribution {
+  excellent: number
+  good: number
+  needsImprovement: number
+  poor: number
+}
+
+export interface ZTPViolations {
+  hipaaRisk: number
+  medicalAdviceRisk: number
+  unqualifiedTransfer: number
+}
+
+export interface DispositionBreakdown {
+  qualified: number
+  warmLead: number
+  refer: number
+  doNotRefer: number
+}
+
+export interface KPIStats {
+  totalCalls: number
+  answered: number
+  missed: number
+  voicemail: number
+  avgDuration: number
+  avgTalkTime: number
+  avgWaitTime: number
+  avgRingTime: number
+  avgScore: number
+  scoreDistribution: ScoreDistribution
+  ztpViolations: ZTPViolations
+  disposition: DispositionBreakdown
+}
+
 export interface DashboardStats {
   totalCalls: number
   analyzed: number
   hotLeads: number
   avgScore: string
+  kpi: KPIStats
 }
 
 export interface LiveCallsMeta {
@@ -103,6 +139,20 @@ export function useDashboard(): UseDashboardReturn {
     analyzed: 0,
     hotLeads: 0,
     avgScore: '0',
+    kpi: {
+      totalCalls: 0,
+      answered: 0,
+      missed: 0,
+      voicemail: 0,
+      avgDuration: 0,
+      avgTalkTime: 0,
+      avgWaitTime: 0,
+      avgRingTime: 0,
+      avgScore: 0,
+      scoreDistribution: { excellent: 0, good: 0, needsImprovement: 0, poor: 0 },
+      ztpViolations: { hipaaRisk: 0, medicalAdviceRisk: 0, unqualifiedTransfer: 0 },
+      disposition: { qualified: 0, warmLead: 0, refer: 0, doNotRefer: 0 },
+    },
   })
   const [recentCalls, setRecentCalls] = useState<Call[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -265,11 +315,59 @@ export function useDashboard(): UseDashboardReturn {
         ? Math.round(scoredCalls.reduce((sum: number, c: Call) => sum + (c.score || 0), 0) / scoredCalls.length)
         : 0
 
+      // Calculate KPI stats from calls
+      const answered = calls.filter(c => c.status === 'completed').length
+      const missed = calls.filter(c => c.status === 'missed').length
+      const voicemail = calls.filter(c => c.status === 'voicemail').length
+
+      const totalDuration = calls.reduce((sum: number, c: Call) => sum + (c.duration || 0), 0)
+      const totalTalkTime = calls.reduce((sum: number, c: Call) => sum + (c.talkTime || 0), 0)
+      const totalWaitTime = calls.reduce((sum: number, c: Call) => sum + (c.waitTime || 0), 0)
+      const totalRingTime = calls.reduce((sum: number, c: Call) => sum + (c.ringTime || 0), 0)
+
+      const avgDuration = inboundTotal > 0 ? totalDuration / inboundTotal : 0
+      const avgTalkTime = inboundTotal > 0 ? totalTalkTime / inboundTotal : 0
+      const avgWaitTime = inboundTotal > 0 ? totalWaitTime / inboundTotal : 0
+      const avgRingTime = inboundTotal > 0 ? totalRingTime / inboundTotal : 0
+
+      // Score distribution
+      const excellent = scoredCalls.filter((c: Call) => c.score && c.score >= 85).length
+      const good = scoredCalls.filter((c: Call) => c.score && c.score >= 70 && c.score < 85).length
+      const needsImprovement = scoredCalls.filter((c: Call) => c.score && c.score >= 50 && c.score < 70).length
+      const poor = scoredCalls.filter((c: Call) => c.score && c.score < 50).length
+
+      // ZTP violations (from tags)
+      const hipaaRisk = calls.filter((c: Call) => c.tags?.includes('hipaa-risk') || c.analysis?.tags?.includes('hipaa-risk')).length
+      const medicalAdviceRisk = calls.filter((c: Call) => c.tags?.includes('medical-advice-risk') || c.analysis?.tags?.includes('medical-advice-risk')).length
+      const unqualifiedTransfer = calls.filter((c: Call) => c.tags?.includes('unqualified-transfer') || c.analysis?.tags?.includes('unqualified-transfer')).length
+
+      // Disposition from score ranges
+      const qualified = scoredCalls.filter((c: Call) => c.score && c.score >= 80).length
+      const warmLead = scoredCalls.filter((c: Call) => c.score && c.score >= 60 && c.score < 80).length
+      const refer = scoredCalls.filter((c: Call) => c.score && c.score >= 40 && c.score < 60).length
+      const doNotRefer = scoredCalls.filter((c: Call) => c.score && c.score < 40).length
+
+      const kpiStats: KPIStats = {
+        totalCalls: inboundTotal,
+        answered,
+        missed,
+        voicemail,
+        avgDuration,
+        avgTalkTime,
+        avgWaitTime,
+        avgRingTime,
+        avgScore,
+        scoreDistribution: { excellent, good, needsImprovement, poor },
+        ztpViolations: { hipaaRisk, medicalAdviceRisk, unqualifiedTransfer },
+        disposition: { qualified, warmLead, refer, doNotRefer },
+      }
+
       setStats({
         totalCalls: inboundTotal,
         analyzed: analyzedCount,
         hotLeads: hotLeadsCount,
         avgScore: avgScore.toString(),
+        kpi: kpiStats,
       })
       setRecentCalls(calls.slice(0, 50))
       setError(null)

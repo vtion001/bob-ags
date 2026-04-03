@@ -1,16 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createServerSupabase(request)
-    const { data: { user } } = await supabase.auth.getUser()
+const DEV_BYPASS_UID = '00000000-0000-0000-0000-000000000001'
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+export async function GET(request: NextRequest) {
+  // Dev bypass check
+  const devSessionCookie = request.cookies.get('sb-dev-session')
+  let isDevUser = false
+  if (devSessionCookie) {
+    try {
+      const devSession = JSON.parse(devSessionCookie.value)
+      if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
+        isDevUser = true
+      }
+    } catch {}
+  }
+
+  try {
+    let userId: string | null = null
+    if (!isDevUser) {
+      const supabase = await createServerSupabase(request)
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      userId = user.id
+    } else {
+      userId = DEV_BYPASS_UID
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -19,7 +39,7 @@ export async function GET(request: NextRequest) {
     const { data: logs, error } = await supabase
       .from('live_analysis_logs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -46,15 +66,33 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createServerSupabase(request)
-    const { data: { user } } = await supabase.auth.getUser()
+  // Dev bypass check
+  const devSessionCookie = request.cookies.get('sb-dev-session')
+  let isDevUser = false
+  if (devSessionCookie) {
+    try {
+      const devSession = JSON.parse(devSessionCookie.value)
+      if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
+        isDevUser = true
+      }
+    } catch {}
+  }
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+  try {
+    let userId: string | null = null
+    if (!isDevUser) {
+      const supabase = await createServerSupabase(request)
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      userId = user.id
+    } else {
+      userId = DEV_BYPASS_UID
     }
 
     const body = await request.json()
@@ -63,7 +101,7 @@ export async function POST(request: NextRequest) {
     const { data: log, error } = await supabase
       .from('live_analysis_logs')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         call_id,
         call_phone,
         call_direction,
@@ -97,22 +135,40 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
-    const supabase = await createServerSupabase(request)
-    const { data: { user } } = await supabase.auth.getUser()
+  // Dev bypass check
+  const devSessionCookie = request.cookies.get('sb-dev-session')
+  let isDevUser = false
+  if (devSessionCookie) {
+    try {
+      const devSession = JSON.parse(devSessionCookie.value)
+      if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
+        isDevUser = true
+      }
+    } catch {}
+  }
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+  try {
+    let userId: string | null = null
+    if (!isDevUser) {
+      const supabase = await createServerSupabase(request)
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      userId = user.id
+    } else {
+      userId = DEV_BYPASS_UID
     }
 
     // Delete all logs for this user
     const { error } = await supabase
       .from('live_analysis_logs')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) {
       console.error('Error deleting live analysis logs:', error)

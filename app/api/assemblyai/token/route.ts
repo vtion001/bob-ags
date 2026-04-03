@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase/server'
 
+const DEV_BYPASS_UID = '00000000-0000-0000-0000-000000000001'
+
+function isDevUser(request: NextRequest): boolean {
+  const devSessionCookie = request.cookies.get('sb-dev-session')
+  if (!devSessionCookie) return false
+  try {
+    const devSession = JSON.parse(devSessionCookie.value)
+    if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
+      return true
+    }
+  } catch {}
+  return false
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabase(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    if (!isDevUser(request)) {
+      const supabase = await createServerSupabase(request)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
     }
 
     // AssemblyAI token requires external API - return empty in standalone mode

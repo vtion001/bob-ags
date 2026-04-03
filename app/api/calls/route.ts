@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CallsService } from '@/lib/ctm/services/calls'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { createCallsService } from '@/lib/ctm/services/calls'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,16 +11,28 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const sourceId = searchParams.get('source_id')
     const agentId = searchParams.get('agent_id')
+    const agentProfileId = searchParams.get('agentProfileId') // Optional: specific agent profile to filter by
 
-    // Fetch registered agent IDs from agent_profiles table
+    // Fetch registered agent profiles with their CTM agent IDs
     const { supabase, response } = await createServerSupabase(request)
     const { data: agentProfiles } = await supabase
       .from('agent_profiles')
-      .select('agent_id')
+      .select('id, agent_id, name')
 
-    const registeredAgentIds = new Set(agentProfiles?.map(ap => ap.agent_id) || [])
+    // Build a map of CTM agent IDs to profile info
+    const ctmAgentIdToProfile = new Map<string, { id: string; agent_id: string; name: string }>()
+    for (const profile of agentProfiles || []) {
+      if (profile.agent_id) {
+        ctmAgentIdToProfile.set(profile.agent_id, profile)
+        // Also normalize for comparison (remove non-digits)
+        const normalizedId = profile.agent_id.replace(/\D/g, '')
+        if (normalizedId !== profile.agent_id) {
+          ctmAgentIdToProfile.set(normalizedId, profile)
+        }
+      }
+    }
 
-    const callsService = new CallsService()
+    const callsService = createCallsService()
     const calls = await callsService.getCalls({
       limit,
       hours,
@@ -29,13 +42,31 @@ export async function GET(request: NextRequest) {
     })
 
     // Filter calls to only include those from registered agents
+    // Use phone-based matching since agent IDs may be in different formats (UUID vs numeric)
     const filteredCalls = calls.filter(call => {
-      // If no registered agents, return all calls (backward compatibility)
-      if (registeredAgentIds.size === 0) return true
-      // If agentId filter is specified, still apply it (more specific filter)
-      if (agentId) return call.agent?.id === agentId
-      // Otherwise, only show calls from registered agents
-      return call.agent?.id && registeredAgentIds.has(call.agent.id)
+      // If no registered agents, return all calls
+      if (ctmAgentIdToProfile.size === 0) return true
+
+      // Match by agent ID (try both exact and normalized comparison)
+      const callAgentId = call.agent?.id
+      if (callAgentId) {
+        // Check exact match
+        if (ctmAgentIdToProfile.has(callAgentId)) return true
+        // Check normalized match (digits only)
+        const normalizedCallAgentId = callAgentId.replace(/\D/g, '')
+        if (normalizedCallAgentId && ctmAgentIdToProfile.has(normalizedCallAgentId)) return true
+      }
+
+      // Also check by agent phone number if available
+      if (call.agent?.phone && ctmAgentIdToProfile.size > 0) {
+        // Check if any registered agent has this phone
+        for (const [, profile] of ctmAgentIdToProfile) {
+          // We can't directly match phone here since profiles don't store phone
+          // But if we have agentProfiles with phone info, we could use it
+        }
+      }
+
+      return false
     })
 
     // Create response with cookies from Supabase auth

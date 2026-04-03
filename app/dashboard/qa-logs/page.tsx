@@ -21,6 +21,7 @@ interface CallRecord {
   id: string
   ctm_call_id: string
   phone: string
+  caller_number: string | null
   direction: string
   duration: number
   score: number | null
@@ -279,7 +280,7 @@ export default function QALogsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <PhoneIcon className="w-4 h-4 text-navy-400" />
-                        <span className="text-sm text-navy-700">{call.phone || 'N/A'}</span>
+                        <span className="text-sm text-navy-700">{call.phone || call.caller_number || 'N/A'}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -300,7 +301,7 @@ export default function QALogsPage() {
                       <span className="text-sm text-navy-700 capitalize">{call.sentiment || 'N/A'}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/calls/${call.id}`)}>
+                      <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/calls/${call.ctm_call_id || call.id}`)}>
                         View
                       </Button>
                     </td>
