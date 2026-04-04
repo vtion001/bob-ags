@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { analyzeTranscript } from '@/lib/ai/analyzer'
 
 const DEV_BYPASS_UID = '00000000-0000-0000-0000-000000000001'
 
+function isDevUser(request: NextRequest): boolean {
+  const devSessionCookie = request.cookies.get('sb-dev-session')
+  if (!devSessionCookie) return false
+  try {
+    const devSession = JSON.parse(devSessionCookie.value)
+    if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
+      return true
+    }
+  } catch {}
+  return false
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Dev bypass check
-    const devSessionCookie = request.cookies.get('sb-dev-session')
-    let isDevUser = false
-    if (devSessionCookie) {
-      try {
-        const devSession = JSON.parse(devSessionCookie.value)
-        if (devSession.dev && devSession.user?.id === DEV_BYPASS_UID) {
-          isDevUser = true
-        }
-      } catch {}
-    }
-
-    if (!isDevUser) {
+    if (!isDevUser(request)) {
       const supabase = await createServerSupabase(request)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -26,13 +27,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    const { transcript, phone, client, ctmStarRating } = body
 
-    // OpenRouter API requires external key - return mock response
+    if (!transcript) {
+      return NextResponse.json(
+        { error: 'Transcript is required' },
+        { status: 400 }
+      )
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        error: 'OpenRouter API key not configured'
+      }, { status: 500 })
+    }
+
+    const analysis = await analyzeTranscript(
+      transcript,
+      phone || '',
+      client,
+      ctmStarRating
+    )
+
     return NextResponse.json({
       success: true,
-      message: 'OpenRouter analysis requires API key configuration',
-      // In standalone mode, return empty analysis
-      analysis: null
+      analysis
     })
   } catch (error) {
     console.error('OpenRouter error:', error)
