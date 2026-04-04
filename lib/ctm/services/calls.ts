@@ -58,39 +58,46 @@ export class CallsService extends CTMClient {
     return allCalls
   }
 
-  async getAllCalls(params: { hours?: number; status?: string | null; sourceId?: string | null; agentId?: string | null } = {}): Promise<Call[]> {
-    const { hours = 8760, status, sourceId, agentId } = params
-    
+  async getAllCalls(params: { hours?: number; status?: string | null; sourceId?: string | null; agentId?: string | null; direction?: 'inbound' | 'outbound'; limit?: number } = {}): Promise<Call[]> {
+    const { hours = 8760, status, sourceId, agentId, direction, limit } = params
+
     const callsPerRequest = 200
-    const maxPages = 500
-    
+    const maxPages = limit ? Math.ceil(limit / callsPerRequest) : 500
+
     let allCalls: Call[] = []
     let page = 1
     let hasMore = true
-    
+
     while (page <= maxPages && hasMore) {
       let endpoint = `/accounts/${this.accountId}/calls.json?limit=${callsPerRequest}&hours=${hours}&page=${page}`
       if (status) endpoint += `&status=${status}`
       if (sourceId) endpoint += `&source_id=${sourceId}`
       if (agentId) endpoint += `&agent_id=${agentId}`
+      if (direction) endpoint += `&direction=${direction}`
 
       const data = await this.makeRequest<{ calls?: CTMCall[] }>(endpoint)
-      
+
       if (!data.calls || data.calls.length === 0) {
         hasMore = false
         break
       }
 
       const transformedCalls = data.calls.map(transformCall)
-      
+
       if (agentId) {
         allCalls.push(...transformedCalls.filter(c => c.agent?.id === agentId))
       } else {
         allCalls.push(...transformedCalls)
       }
-      
+
       console.log(`[getAllCalls] Fetched page ${page}, total calls: ${allCalls.length}`)
-      
+
+      if (limit && allCalls.length >= limit) {
+        allCalls = allCalls.slice(0, limit)
+        hasMore = false
+        break
+      }
+
       if (data.calls.length < callsPerRequest) {
         hasMore = false
       } else {
@@ -133,11 +140,12 @@ export class CallsService extends CTMClient {
     return this.getCalls({ hours, limit: 50 })
   }
 
-  async searchCallsByPhone(phoneNumber: string, hours: number = 8760): Promise<Call[]> {
-    const allCalls = await this.getAllCalls({ hours })
-    
+  async searchCallsByPhone(phoneNumber: string, hours: number = 8760, limit?: number, direction?: 'inbound' | 'outbound'): Promise<Call[]> {
+    // Phone search should fetch all available calls (no limit by default)
+    const allCalls = await this.getAllCalls({ hours, direction, limit })
+
     console.log('[searchCallsByPhone] Fetched calls:', allCalls.length)
-    
+
     return allCalls.filter(call => {
       const phoneFields = [
         call.phone,

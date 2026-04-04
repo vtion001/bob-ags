@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const phone = searchParams.get('phone')
     const hours = parseInt(searchParams.get('hours') || '8760', 10)
+    const direction = searchParams.get('direction') as 'inbound' | 'outbound' | null
 
     if (!phone) {
       return NextResponse.json(
@@ -15,7 +16,8 @@ export async function GET(request: NextRequest) {
     }
 
     const callsService = new CallsService()
-    const calls = await callsService.searchCallsByPhone(phone, hours)
+    // Phone search has no limit - fetch all matching calls
+    const calls = await callsService.searchCallsByPhone(phone, hours, undefined, direction || undefined)
 
     return NextResponse.json({
       success: true,
