@@ -77,7 +77,7 @@
                 </div>
                 <div class="mt-4 flex gap-3">
                     <input type="text" id="manualTranscript" placeholder="Enter transcript manually (for testing)..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <button onclick="addTranscript()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <button onclick="addTranscript()" class="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg transition-colors">
                         Add
                     </button>
                 </div>
@@ -118,7 +118,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Session Actions</h2>
                 <div class="space-y-3">
-                    <button onclick="toggleFloatingWindow()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button onclick="toggleFloatingWindow()" class="w-full bg-navy-900 hover:bg-navy-800 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
