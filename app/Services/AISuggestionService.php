@@ -2,65 +2,34 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AISuggestionService
 {
-    protected string $apiKey;
-    protected string $baseUrl;
-    protected string $defaultModel;
+    protected string $provider;
     protected KnowledgeBaseService $kbService;
 
     public function __construct(KnowledgeBaseService $kbService)
     {
-        $this->apiKey = config('openrouter.api_key');
-        $this->baseUrl = config('openrouter.base_url', 'https://openrouter.ai/api/v1');
-        $this->defaultModel = 'openai/gpt-4o-mini';
+        $this->provider = Setting::getValue('ai_provider', 'openai');
         $this->kbService = $kbService;
     }
 
-    protected function getHeaders(): array
+    protected function getService()
     {
-        return [
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type' => 'application/json',
-            'HTTP-Referer' => config('app.url', 'http://localhost'),
-            'X-Title' => config('app.name', 'BOB-AGS'),
-        ];
+        return match($this->provider) {
+            'openai' => app(OpenAIService::class),
+            'anthropic' => app(AnthropicService::class),
+            'openrouter' => app(OpenRouterService::class),
+            default => app(OpenAIService::class),
+        };
     }
 
     public function chat(array $messages, ?string $model = null): ?array
     {
-        if (empty($this->apiKey)) {
-            Log::warning('OpenRouter API key not configured');
-            return null;
-        }
-
-        try {
-            $response = Http::withHeaders($this->getHeaders())
-                ->timeout(30)
-                ->post($this->baseUrl . '/chat/completions', [
-                    'model' => $model ?? $this->defaultModel,
-                    'messages' => $messages,
-                    'temperature' => 0.7,
-                    'max_tokens' => 500,
-                ]);
-
-            if ($response->successful()) {
-                return $response->json();
-            }
-
-            Log::error('OpenRouter chat error', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('OpenRouter chat exception', ['error' => $e->getMessage()]);
-            return null;
-        }
+        return $this->getService()->chat($messages, $model);
     }
 
     public function getWhatToSay(array $context): string
