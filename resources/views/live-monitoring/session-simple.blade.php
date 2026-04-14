@@ -68,12 +68,20 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Session Actions</h2>
         <div class="space-y-3">
+            <button onclick="toggleFloatingWindow()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Toggle AI Assistant
+            </button>
             <a href="{{ route('live-monitoring.index') }}" class="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg transition-colors text-center">
                 Back to Sessions
             </a>
         </div>
     </div>
 </div>
+
+@include('live-monitoring.partials.floating-window')
 
 <script>
 const sessionId = '{{ $session->session_id }}';

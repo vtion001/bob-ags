@@ -1,43 +1,9 @@
-import './bootstrap';
-import { createApp } from 'vue';
-import FloatingWindow from './components/FloatingWindow.vue';
+// BOB-AGS - Vanilla JavaScript Entry Point
+// Vue has been removed. Using vanilla JS for all interactive features.
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing Vue...');
-    const appElement = document.getElementById('app');
-    
-    if (appElement) {
-        try {
-            const vueApp = createApp({
-                components: {
-                    FloatingWindow
-                },
-                data() {
-                    return {
-                        floatingWindowVisible: false
-                    };
-                },
-                methods: {
-                    updateMainTimer(time) {
-                        const timer = document.getElementById('mainTimer');
-                        if (timer) timer.textContent = time;
-                    },
-                    toggleFloatingWindow() {
-                        this.floatingWindowVisible = !this.floatingWindowVisible;
-                    }
-                },
-                mounted() {
-                    window.vueApp = this;
-                    window.toggleFloatingWindow = this.toggleFloatingWindow;
-                }
-            });
-            
-            vueApp.mount('#app');
-            console.log('Vue app mounted successfully');
-        } catch (error) {
-            console.error('Error mounting Vue app:', error);
-        }
-    } else {
-        console.log('#app element not found');
-    }
-});
+import './bootstrap';
+
+// Floating window functionality is handled inline in the Blade partial
+// No Vue mounting required
+
+console.log('BOB-AGS loaded');
