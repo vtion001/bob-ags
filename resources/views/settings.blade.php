@@ -20,6 +20,13 @@
                 @csrf
                 <div class="space-y-4">
                     <div>
+                        <label for="ctm_host" class="block text-sm font-medium text-gray-700 mb-1">CTM Host</label>
+                        <input type="text" name="ctm_host" id="ctm_host" 
+                            value="{{ $settings['ctm_host'] }}"
+                            placeholder="api.calltrackingmetrics.com"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                    </div>
+                    <div>
                         <label for="ctm_access_key" class="block text-sm font-medium text-gray-700 mb-1">CTM Access Key</label>
                         <input type="text" name="ctm_access_key" id="ctm_access_key" 
                             value="{{ $settings['ctm_access_key'] }}"

@@ -39,6 +39,7 @@ class CTMService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts");
 
             if ($response->successful()) {
@@ -69,6 +70,7 @@ class CTMService
             }
 
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls.json", array_merge($defaultParams, $params));
 
             if ($response->successful()) {
@@ -100,6 +102,7 @@ class CTMService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}");
 
             if ($response->successful()) {
@@ -126,6 +129,7 @@ class CTMService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}/transcript");
 
             if ($response->successful()) {
@@ -151,6 +155,7 @@ class CTMService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/sources");
 
             if ($response->successful()) {
@@ -172,6 +177,7 @@ class CTMService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/numbers");
 
             if ($response->successful()) {
@@ -199,6 +205,7 @@ class CTMService
             ];
 
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/numbers/search.json", array_merge($defaultParams, $params));
 
             if ($response->successful()) {
