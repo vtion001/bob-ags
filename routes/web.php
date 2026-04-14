@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('calls')->name('calls.')->group(function () {
         Route::get('/', [CallController::class, 'index'])->name('index');
         Route::get('/sync', [CallController::class, 'sync'])->name('sync');
+        Route::get('/search-ctm', [CallController::class, 'searchCTM'])->name('search-ctm');
         Route::get('/{ctmCallId}', [CallController::class, 'show'])->name('show');
         Route::post('/{ctmCallId}/analyze', [CallController::class, 'analyze'])->name('analyze');
         Route::post('/{ctmCallId}/transcribe', [CallController::class, 'transcribe'])->name('transcribe');

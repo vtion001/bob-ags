@@ -52,6 +52,65 @@ class CallController extends Controller
         return view('calls.index', compact('calls'));
     }
 
+    public function searchCTM(Request $request)
+    {
+        try {
+            $dateFrom = $request->input('date_from', now()->subMonths(6)->toDateString());
+            $dateTo = $request->input('date_to', now()->toDateString());
+            $search = $request->input('search', '');
+            $limit = min((int)$request->input('limit', 500), 1000);
+
+            $startDate = \Carbon\Carbon::parse($dateFrom)->startOfDay();
+            $endDate = \Carbon\Carbon::parse($dateTo)->endOfDay();
+
+            $ctmCalls = $this->ctm->getCalls([
+                'limit' => $limit,
+                'start_date' => $startDate->toIso8601String(),
+                'end_date' => $endDate->toIso8601String(),
+            ]);
+
+            if (!$ctmCalls || !isset($ctmCalls['calls'])) {
+                return redirect()->back()->with('error', 'No calls received from CTM');
+            }
+
+            $calls = collect($ctmCalls['calls']);
+
+            if (!empty($search)) {
+                $searchNormalized = preg_replace('/[^0-9]/', '', $search);
+                $calls = $calls->filter(function ($call) use ($searchNormalized) {
+                    $callerNumber = preg_replace('/[^0-9]/', '', $call['caller_number'] ?? '');
+                    $trackingNumber = preg_replace('/[^0-9]/', '', $call['tracking_number'] ?? '');
+                    return stripos($callerNumber, $searchNormalized) !== false 
+                        || stripos($trackingNumber, $searchNormalized) !== false
+                        || stripos($call['caller_number'] ?? '', $search) !== false
+                        || stripos($call['tracking_number'] ?? '', $search) !== false;
+                });
+            }
+
+            $totalEntries = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
+            $filteredCount = $calls->count();
+
+            $query = Call::query()->with('qaLog');
+            if (!empty($search)) {
+                $query->search($search);
+            }
+            $localCalls = $query->get()->keyBy('ctm_call_id');
+
+            return view('calls.index', [
+                'calls' => $calls->take(20),
+                'localCalls' => $localCalls,
+                'totalEntries' => $totalEntries,
+                'filteredCount' => $filteredCount,
+                'searchFrom' => 'ctm',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('CTM Search error', ['error' => $e->getMessage()]);
+            return redirect()->back()->with('error', 'Failed to search CTM: ' . $e->getMessage());
+        }
+    }
+
     public function show(string $ctmCallId)
     {
         $call = Call::with(['qaLog', 'user'])->where('ctm_call_id', $ctmCallId)->first();
