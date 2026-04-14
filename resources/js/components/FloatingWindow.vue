@@ -269,7 +269,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
 .floating-window {
     position: fixed;
     width: 420px;
@@ -277,7 +277,7 @@ export default {
     background: linear-gradient(145deg, #1a1f35 0%, #0d1117 100%);
     border-radius: 16px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    z-index: 9999;
+    z-index: 2147483647;
     display: flex;
     flex-direction: column;
     overflow: hidden;

@@ -20,7 +20,7 @@
         </style>
     </head>
     <body class="font-sans antialiased bg-gray-100">
-        <link rel="stylesheet" href="{{ asset('build/assets/app-DSwq4qpB.css') }}">
+        <link rel="stylesheet" href="{{ asset('build/assets/app-3Lv_Pcyq.css') }}">
         <link rel="stylesheet" href="{{ asset('build/assets/app-Qn_Qb4EM.css') }}">
         <script type="module" src="{{ asset('build/assets/app-Bj_6ABr5.js') }}"></script>
         <div class="flex h-screen">

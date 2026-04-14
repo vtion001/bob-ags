@@ -45,7 +45,7 @@ class LiveMonitoringController extends Controller
             abort(403, 'Unauthorized access to this session.');
         }
 
-        return view('live-monitoring.session', compact('session'));
+        return view('live-monitoring.session-simple', compact('session'));
     }
 
     public function stream(Request $request, string $sessionId)
