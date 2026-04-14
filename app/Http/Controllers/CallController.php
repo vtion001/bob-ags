@@ -93,7 +93,7 @@ class CallController extends Controller
                     'ctm_call_id' => $ctmCall['id'],
                     'tracking_number' => $ctmCall['phone'] ?? null,
                     'caller_number' => $ctmCall['caller_number'] ?? null,
-                    'direction' => $ctmCall['direction'] ?? 'inbound',
+                    'direction' => in_array($ctmCall['direction'] ?? '', ['inbound', 'outbound']) ? $ctmCall['direction'] : 'inbound',
                     'duration' => $ctmCall['duration'] ?? 0,
                     'call_datetime' => isset($ctmCall['timestamp']) 
                         ? \Carbon\Carbon::parse($ctmCall['timestamp']) 
