@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use App\Models\Setting;
 
 class CTMService
 {
@@ -15,10 +16,10 @@ class CTMService
 
     public function __construct()
     {
-        $this->host = config('ctm.host');
-        $this->accessKey = config('ctm.access_key');
-        $this->secretKey = config('ctm.secret_key');
-        $this->accountId = config('ctm.account_id');
+        $this->host = Setting::getValue('ctm_host', config('ctm.host'));
+        $this->accessKey = Setting::getValue('ctm_access_key', config('ctm.access_key'));
+        $this->secretKey = Setting::getValue('ctm_secret_key', config('ctm.secret_key'));
+        $this->accountId = Setting::getValue('ctm_account_id', config('ctm.account_id'));
     }
 
     protected function getAuthHeader(): string

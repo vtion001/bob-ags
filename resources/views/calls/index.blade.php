@@ -8,8 +8,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-black">Calls</h1>
-            <form method="POST" action="{{ route('calls.sync') }}">
-                @csrf
+            <form method="GET" action="{{ route('calls.sync') }}">
                 <button type="submit" class="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg font-medium">
                     Sync Calls
                 </button>
@@ -45,7 +44,7 @@
 
         <!-- Calls Table -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
-            @if(empty($calls))
+            @if($calls->isEmpty())
                 <p class="text-gray-500 text-center py-12">No calls found.</p>
             @else
                 <div class="overflow-x-auto">
@@ -65,35 +64,35 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @foreach($calls as $call)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['caller_number'] ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->caller_number ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
                                     <span class="px-2 py-1 rounded text-xs font-medium 
-                                        @if(($call['direction'] ?? '') === 'inbound') bg-blue-100 text-blue-800
+                                        @if(($call->direction ?? '') === 'inbound') bg-blue-100 text-blue-800
                                         @else bg-gray-100 text-gray-800
                                         @endif">
-                                        {{ ucfirst($call['direction'] ?? 'N/A') }}
+                                        {{ ucfirst($call->direction ?? 'N/A') }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-black">{{ isset($call['timestamp']) ? \Carbon\Carbon::parse($call['timestamp'])->format('M d, Y H:i') : 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['duration'] ?? 0 }}s</td>
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['agent_name'] ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->call_datetime ? $call->call_datetime->format('M d, Y H:i') : 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->duration ?? 0 }}s</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->agent_name ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if(isset($call['score']))
+                                    @if($call->qaLog?->total_score)
                                         <span class="px-2 py-1 rounded text-xs font-medium 
-                                            @if($call['score'] >= 80) bg-green-100 text-green-800
-                                            @elseif($call['score'] >= 60) bg-yellow-100 text-yellow-800
-                                            @elseif($call['score'] >= 40) bg-blue-100 text-blue-800
+                                            @if($call->qaLog->total_score >= 80) bg-green-100 text-green-800
+                                            @elseif($call->qaLog->total_score >= 60) bg-yellow-100 text-yellow-800
+                                            @elseif($call->qaLog->total_score >= 40) bg-blue-100 text-blue-800
                                             @else bg-red-100 text-red-800
                                             @endif">
-                                            {{ $call['score'] }}
+                                            {{ $call->qaLog->total_score }}
                                         </span>
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-sm text-black max-w-xs truncate">{{ $call['disposition'] ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black max-w-xs truncate">{{ $call->qaLog?->disposition ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
-                                    <a href="{{ route('calls.show', $call['ctm_call_id'] ?? $call['id']) }}" 
+                                    <a href="{{ route('calls.show', $call->ctm_call_id ?? $call->id) }}" 
                                         class="text-navy-900 hover:text-navy-700 font-medium">
                                         View
                                     </a>

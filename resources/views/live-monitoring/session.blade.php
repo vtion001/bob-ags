@@ -45,7 +45,7 @@
 @endsection
 
 @section('content')
-<div id="app" class="relative">
+<div id="app">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -137,8 +137,8 @@
         :session-id="'{{ $session->session_id }}'"
         :start-time="'{{ $session->started_at?->toIso8601String() }}'"
         :show="floatingWindowVisible"
-        @toggle="floatingWindowVisible = $event"
-        @time-update="updateMainTimer"
+        v-on:toggle="floatingWindowVisible = $event"
+        v-on:time-update="updateMainTimer"
     ></floating-window>
 </div>
 

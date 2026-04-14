@@ -22,19 +22,19 @@
                     <div>
                         <label for="ctm_access_key" class="block text-sm font-medium text-gray-700 mb-1">CTM Access Key</label>
                         <input type="text" name="ctm_access_key" id="ctm_access_key" 
-                            value="{{ config('ctm.access_key') }}"
+                            value="{{ $settings['ctm_access_key'] }}"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                     </div>
                     <div>
                         <label for="ctm_secret_key" class="block text-sm font-medium text-gray-700 mb-1">CTM Secret Key</label>
                         <input type="password" name="ctm_secret_key" id="ctm_secret_key"
-                            value="{{ config('ctm.secret_key') }}"
+                            value="{{ $settings['ctm_secret_key'] }}"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                     </div>
                     <div>
                         <label for="ctm_account_id" class="block text-sm font-medium text-gray-700 mb-1">CTM Account ID</label>
                         <input type="text" name="ctm_account_id" id="ctm_account_id"
-                            value="{{ config('ctm.account_id') }}"
+                            value="{{ $settings['ctm_account_id'] }}"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                     </div>
                 </div>
@@ -47,7 +47,7 @@
                 <div>
                     <label for="openrouter_api_key" class="block text-sm font-medium text-gray-700 mb-1">OpenRouter API Key</label>
                     <input type="password" name="openrouter_api_key" id="openrouter_api_key"
-                        value="{{ config('openrouter.api_key') }}"
+                        value="{{ $settings['openrouter_api_key'] }}"
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                     <p class="text-sm text-gray-500 mt-1">Used for Claude AI-powered call analysis</p>
                 </div>
@@ -61,7 +61,7 @@
                 <div>
                     <label for="assemblyai_api_key" class="block text-sm font-medium text-gray-700 mb-1">AssemblyAI API Key</label>
                     <input type="password" name="assemblyai_api_key" id="assemblyai_api_key"
-                        value="{{ config('assemblyai.api_key') }}"
+                        value="{{ $settings['assemblyai_api_key'] }}"
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                 </div>
             </div>

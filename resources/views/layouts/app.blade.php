@@ -20,9 +20,9 @@
         </style>
     </head>
     <body class="font-sans antialiased bg-gray-100">
-        <link rel="stylesheet" href="{{ asset('build/assets/app-I06scgRA.css') }}">
-        <link rel="stylesheet" href="{{ asset('build/assets/app-DC9kKP21.css') }}">
-        <script type="module" src="{{ asset('build/assets/app-Dvi-0qya.js') }}"></script>
+        <link rel="stylesheet" href="{{ asset('build/assets/app-DSwq4qpB.css') }}">
+        <link rel="stylesheet" href="{{ asset('build/assets/app-Qn_Qb4EM.css') }}">
+        <script type="module" src="{{ asset('build/assets/app-Bj_6ABr5.js') }}"></script>
         <div class="flex h-screen">
             <!-- Sidebar -->
             <aside class="w-64 bg-navy-900 text-white flex flex-col fixed h-full">
