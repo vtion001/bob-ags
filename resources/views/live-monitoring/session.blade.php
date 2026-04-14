@@ -179,7 +179,7 @@ function addTranscript() {
 }
 
 function endSession() {
-    if (!confirm('Are you sure you want to end this session?')) return;
+    if (!confirm('Are you sure you want to end this session? AI will generate disposition notes.')) return;
     
     fetch('/live-monitoring/stop/' + sessionId, {
         method: 'POST',
@@ -190,7 +190,7 @@ function endSession() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.href = '/live-monitoring';
+            location.reload();
         }
     });
 }

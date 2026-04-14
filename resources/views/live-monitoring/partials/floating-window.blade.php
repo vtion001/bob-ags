@@ -5,7 +5,7 @@
     max-width: calc(100vw - 40px);
     background: linear-gradient(180deg, rgba(10, 22, 40, 0.92) 0%, rgba(26, 38, 64, 0.95) 100%);
     border-radius: 16px;
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     z-index: 99999;
     display: none;
     flex-direction: column;
@@ -63,7 +63,7 @@
 .floating-timer {
     font-family: 'SF Mono', Monaco, monospace;
     font-size: 13px;
-    color: #60a5fa;
+    color: #ffffff;
 }
 
 .floating-close-btn {
@@ -94,7 +94,7 @@
 }
 
 .floating-transcript {
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(10, 22, 40, 0.7);
     border-radius: 12px;
     padding: 12px;
     max-height: 120px;
@@ -105,14 +105,15 @@
 
 .floating-transcript-line {
     padding: 3px 0;
+    color: #e5e7eb;
 }
 
 .floating-transcript-line.agent {
-    color: #60a5fa;
+    color: #e5e7eb;
 }
 
 .floating-transcript-line.caller {
-    color: #34d399;
+    color: #ffffff;
 }
 
 .floating-transcript-empty {
@@ -122,8 +123,8 @@
 }
 
 .floating-suggestion {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: linear-gradient(135deg, rgba(10, 22, 40, 0.9) 0%, rgba(26, 38, 64, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 14px;
 }
@@ -135,7 +136,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #93c5fd;
+    color: #ffffff;
     margin-bottom: 8px;
 }
 
@@ -146,7 +147,7 @@
 }
 
 .floating-suggestion-loading {
-    color: #9ca3af;
+    color: #d1d5db;
     font-size: 12px;
     font-style: italic;
 }
@@ -161,19 +162,19 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: rgba(10, 22, 40, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     padding: 8px 14px;
-    color: #93c5fd;
+    color: #ffffff;
     font-size: 12px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .floating-action-btn:hover {
-    background: rgba(59, 130, 246, 0.25);
-    color: #bfdbfe;
+    background: rgba(26, 38, 64, 0.8);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .floating-refresh-btn {
@@ -219,7 +220,7 @@
 }
 
 .floating-input:focus {
-    border-color: #3b82f6;
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .floating-input::placeholder {
@@ -227,8 +228,8 @@
 }
 
 .floating-send-btn {
-    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-    border: none;
+    background: linear-gradient(180deg, #1A2640 0%, #0A1628 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
     padding: 10px 16px;
     color: white;
@@ -237,11 +238,11 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5), 0 -1px 0 0 rgba(96, 165, 250, 0.3) inset, 0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
 }
 
 .floating-send-btn:hover {
-    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(180deg, #2a3a5c 0%, #1A2640 100%);
+    border-color: rgba(255, 255, 255, 0.4);
     transform: scale(1.02);
 }
 
@@ -366,13 +367,13 @@
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
                 <span>What to Say</span>
-                <button class="floating-refresh-btn" onclick="handleRefreshSuggestions()" title="Refresh suggestions" style="background:none;border:none;cursor:pointer;padding:2px;margin-left:4px;color:#93c5fd;">
+                <button class="floating-refresh-btn" onclick="handleRefreshSuggestions()" title="Refresh suggestions" style="background:none;border:none;cursor:pointer;padding:2px;margin-left:4px;color:#ffffff;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                     </svg>
                 </button>
             </div>
-            <p class="floating-suggestion-loading" id="floatingSuggestionText">Click refresh to get AI suggestions...</p>
+            <p class="floating-suggestion-text" id="floatingSuggestionText">Click refresh to get AI suggestions...</p>
         </div>
 
         <div class="floating-actions">

@@ -23,6 +23,7 @@ class LiveMonitoring extends Model
         'current_context',
         'active_suggestions',
         'ztp_alerts',
+        'disposition_notes',
         'started_at',
         'ended_at',
     ];

@@ -45,13 +45,21 @@ class KnowledgeBaseService
         $contextParts = [];
         $keywords = $this->extractKeywords($transcript);
 
-        foreach ($keywords as $keyword) {
-            $entries = KnowledgeBaseEntry::where('chunk', 'LIKE', "%{$keyword}%")
-                ->with('knowledgeBase')
-                ->limit(2)
+        if (!empty($keywords)) {
+            $patternParts = array_map(fn($k) => "%{$k}%", $keywords);
+            
+            $entries = KnowledgeBaseEntry::with('knowledgeBase')
+                ->whereHas('knowledgeBase', fn($q) => $q->where('is_active', true))
+                ->where(function($query) use ($patternParts) {
+                    foreach ($patternParts as $pattern) {
+                        $query->orWhere('chunk', 'LIKE', $pattern);
+                    }
+                })
+                ->limit(20)
                 ->get();
 
             foreach ($entries as $entry) {
+                if (count($contextParts) >= $maxChunks) break;
                 if (!in_array($entry->chunk, $contextParts)) {
                     $contextParts[] = "[{$entry->knowledgeBase->category}] {$entry->chunk}";
                 }

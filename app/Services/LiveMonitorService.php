@@ -36,12 +36,52 @@ class LiveMonitorService
 
     public function endSession(LiveMonitoring $session): void
     {
+        $notes = $this->generateDispositionNotes($session);
+
         $session->update([
             'status' => 'ended',
             'ended_at' => now(),
+            'disposition_notes' => $notes,
         ]);
 
         Log::info('Live monitoring session ended', ['session_id' => $session->session_id]);
+    }
+
+    public function generateDispositionNotes(LiveMonitoring $session): string
+    {
+        try {
+            $transcript = $session->transcript_text ?? '';
+            $agentName = $session->agent_name ?? 'Unknown';
+            $callerNumber = $session->caller_number ?? 'Not specified';
+            $ztpAlerts = $session->ztp_alerts ?? [];
+            $duration = $session->started_at ? $session->started_at->diffInMinutes($session->ended_at ?? now()) : 0;
+
+            $prompt = "You are a call center QA analyst. Generate a concise disposition summary for the following call transcript.\n\n";
+            $prompt .= "Agent: {$agentName}\n";
+            $prompt .= "Caller: {$callerNumber}\n";
+            $prompt .= "Duration: {$duration} minutes\n";
+
+            if (!empty($ztpAlerts)) {
+                $prompt .= "ZTP Violations detected: " . count($ztpAlerts) . "\n";
+            }
+
+            $prompt .= "\nTranscript:\n" . $transcript . "\n\n";
+            $prompt .= "Generate a structured disposition summary with these sections:\n";
+            $prompt .= "1. Call Summary (2-3 sentences)\n";
+            $prompt .= "2. Key Topics Discussed\n";
+            $prompt .= "3. Customer Sentiment (positive/neutral/negative)\n";
+            $prompt .= "4. Action Items / Next Steps\n";
+            $prompt .= "5. Disposition Recommendation\n";
+            $prompt .= "Keep each section brief and actionable.";
+
+            return $this->aiService->answerQuestion($prompt, ['transcript' => $transcript]);
+        } catch (\Exception $e) {
+            Log::error('Failed to generate disposition notes', [
+                'session_id' => $session->session_id,
+                'error' => $e->getMessage(),
+            ]);
+            return "Unable to generate disposition notes automatically. Please review the transcript manually.";
+        }
     }
 
     public function pauseSession(LiveMonitoring $session): void

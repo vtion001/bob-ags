@@ -213,7 +213,7 @@
                     </div>
                     @endif
                     <div class="mt-4 flex gap-2">
-                        <a href="{{ route('live-monitoring.session', $session->session_id) }}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg text-sm transition-colors">
+                        <a href="{{ route('live-monitoring.session', $session->session_id) }}" class="flex-1 bg-navy-900 hover:bg-navy-800 text-white text-center py-2 rounded-lg text-sm transition-colors">
                             View Session
                         </a>
                         <button onclick="sendAlert('{{ $session->session_id }}')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
@@ -327,7 +327,7 @@ function updateSessionsGrid(sessions) {
                         </div>
                         ` : ''}
                         <div class="mt-4 flex gap-2">
-                            <a href="/live-monitoring/session/${session.session_id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg text-sm transition-colors">
+                            <a href="/live-monitoring/session/${session.session_id}" class="flex-1 bg-navy-900 hover:bg-navy-800 text-white text-center py-2 rounded-lg text-sm transition-colors">
                                 View Session
                             </a>
                             <button onclick="sendAlert('${session.session_id}')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
