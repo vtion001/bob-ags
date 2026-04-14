@@ -219,4 +219,109 @@ EOT;
 
         return trim($result['choices'][0]['message']['content'] ?? 'I understand. Let me help you with that.');
     }
+
+    public function getWhatToSayStreaming(array $context, callable $onToken): ?string
+    {
+        $transcript = $context['transcript'] ?? '';
+        $kbContext = $this->kbService->getContextForAI($transcript, 3);
+
+        $systemPrompt = <<<EOT
+You are an AI assistant for a substance abuse helpline agent. Your role is to help agents provide compassionate, professional, and helpful responses to callers.
+Key principles:
+- Be empathetic and non-judgmental
+- Use active listening techniques
+- Follow proper protocols for crisis situations
+- Never provide medical diagnoses or specific medical advice
+- Always prioritize caller safety
+- Keep responses concise and actionable (1-2 sentences)
+EOT;
+
+        $userPrompt = <<<EOT
+Based on the conversation transcript and knowledge base context, suggest what the agent should say next.
+
+Transcript:
+{$transcript}
+
+Knowledge Base Context:
+{$kbContext}
+
+Provide a single, concise suggestion for what the agent should say next. The suggestion should:
+1. Be empathetic and supportive
+2. Be appropriate for a substance abuse helpline context
+3. Be 1-2 sentences maximum
+4. Focus on the caller's needs
+
+If the conversation is just starting, suggest a warm greeting and opening question.
+If the caller is expressing distress, suggest a calming, supportive response.
+If the caller is providing information, suggest a follow-up question or acknowledgment.
+
+Response format: Just the suggestion text, nothing else.
+EOT;
+
+        return $this->getService()->streamChat([
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt],
+        ], $onToken);
+    }
+
+    public function answerQuestionStreaming(string $question, array $context, callable $onToken): ?string
+    {
+        $transcript = $context['transcript'] ?? '';
+        $kbContext = $this->kbService->getContextForAI($transcript . ' ' . $question, 5);
+
+        $systemPrompt = "You are an AI assistant for a substance abuse helpline agent. Answer questions based on the conversation context and knowledge base provided. Be helpful, accurate, and concise.";
+
+        $userPrompt = <<<EOT
+Question: {$question}
+
+Conversation Context:
+{$transcript}
+
+Knowledge Base:
+{$kbContext}
+
+Answer the question based on the context. If the answer requires information not in the context, say so and suggest where the agent might find that information.
+
+Keep your answer concise and actionable (2-3 sentences maximum).
+EOT;
+
+        return $this->getService()->streamChat([
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt],
+        ], $onToken);
+    }
+
+    public function getFollowUpQuestionsStreaming(array $context, callable $onToken): ?string
+    {
+        $transcript = $context['transcript'] ?? '';
+        $kbContext = $this->kbService->getContextForAI($transcript, 3);
+
+        $systemPrompt = "You are an AI assistant helping a substance abuse helpline agent ask relevant follow-up questions. Generate exactly 3 follow-up questions that would help the agent better understand the caller's situation.";
+
+        $userPrompt = <<<EOT
+Based on this conversation transcript, suggest 3 follow-up questions the agent should ask.
+
+Transcript:
+{$transcript}
+
+Knowledge Base:
+{$kbContext}
+
+Generate exactly 3 follow-up questions. Each question should:
+1. Be open-ended (not yes/no)
+2. Be compassionate and non-judgmental
+3. Help gather important information for qualification
+4. Be relevant to substance abuse helpline context
+
+Return in this exact format (one question per line):
+1. [question]
+2. [question]
+3. [question]
+EOT;
+
+        return $this->getService()->streamChat([
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt],
+        ], $onToken);
+    }
 }

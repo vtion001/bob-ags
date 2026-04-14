@@ -211,4 +211,96 @@ class LiveMonitoringController extends Controller
             ], 500);
         }
     }
+
+    public function chatStream(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => 'required|string',
+            'question' => 'required|string',
+        ]);
+
+        $session = LiveMonitoring::where('session_id', $validated['session_id'])->firstOrFail();
+
+        return response()->stream(function () use ($session, $validated) {
+            $question = $validated['question'];
+            
+            echo "data: " . json_encode(['status' => 'start']) . "\n";
+            ob_flush();
+            flush();
+
+            $context = [
+                'transcript' => $session->transcript_text ?? '',
+            ];
+
+            $aiService = app(\App\Services\AISuggestionService::class);
+            $fullResponse = '';
+
+            $result = $aiService->answerQuestionStreaming($question, $context, function ($token) use (&$fullResponse) {
+                $fullResponse .= $token;
+                echo "data: " . json_encode([
+                    'token' => $token,
+                ]) . "\n";
+                ob_flush();
+                flush();
+            });
+
+            echo "data: [DONE]\n";
+            ob_flush();
+            flush();
+
+        }, 200, [
+            'Content-Type' => 'text/plain',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    public function suggestionStream(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => 'required|string',
+            'type' => 'required|in:what_to_say,follow_up',
+        ]);
+
+        $session = LiveMonitoring::where('session_id', $validated['session_id'])->firstOrFail();
+
+        return response()->stream(function () use ($session, $validated) {
+            $type = $validated['type'];
+            
+            echo "data: " . json_encode(['status' => 'start']) . "\n";
+            ob_flush();
+            flush();
+
+            $context = [
+                'transcript' => $session->transcript_text ?? '',
+            ];
+
+            $aiService = app(\App\Services\AISuggestionService::class);
+            $fullResponse = '';
+
+            $streamMethod = $type === 'what_to_say' 
+                ? 'getWhatToSayStreaming' 
+                : 'getFollowUpQuestionsStreaming';
+
+            $result = $aiService->$streamMethod($context, function ($token) use (&$fullResponse) {
+                $fullResponse .= $token;
+                echo "data: " . json_encode([
+                    'token' => $token,
+                ]) . "\n";
+                ob_flush();
+                flush();
+            });
+
+            echo "data: [DONE]\n";
+            ob_flush();
+            flush();
+
+        }, 200, [
+            'Content-Type' => 'text/plain',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
 }

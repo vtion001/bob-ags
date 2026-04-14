@@ -102,6 +102,80 @@ class AnthropicService
         return $result['choices'][0]['message']['content'] ?? null;
     }
 
+    public function streamChat(array $messages, callable $onToken, ?string $model = null): ?string
+    {
+        if (empty($this->apiKey)) {
+            Log::warning('Anthropic API key not configured');
+            return null;
+        }
+
+        try {
+            $systemMessage = '';
+            $filteredMessages = [];
+            
+            foreach ($messages as $msg) {
+                if ($msg['role'] === 'system') {
+                    $systemMessage = $msg['content'];
+                } else {
+                    $filteredMessages[] = $msg;
+                }
+            }
+
+            $requestBody = [
+                'model' => $model ?? $this->defaultModel,
+                'messages' => $filteredMessages,
+                'max_tokens' => 1024,
+                'stream' => true,
+            ];
+
+            if (!empty($systemMessage)) {
+                $requestBody['system'] = $systemMessage;
+            }
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->timeout(60)
+                ->post($this->baseUrl . '/messages', $requestBody);
+
+            if (!$response->successful()) {
+                Log::error('Anthropic stream error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return null;
+            }
+
+            $fullContent = '';
+            $stream = $response->getBody();
+            
+            while (!$stream->eof()) {
+                $line = $stream->read(4096);
+                
+                if (strpos($line, 'data: ') === 0) {
+                    $data = substr($line, 6);
+                    
+                    if ($data === '[DONE]') {
+                        break;
+                    }
+                    
+                    $json = json_decode($data, true);
+                    
+                    if (isset($json['type']) && $json['type'] === 'content_block_delta') {
+                        if (isset($json['delta']['text'])) {
+                            $token = $json['delta']['text'];
+                            $fullContent .= $token;
+                            $onToken($token);
+                        }
+                    }
+                }
+            }
+
+            return $fullContent;
+        } catch (\Exception $e) {
+            Log::error('Anthropic stream exception', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     public function analyzeCall(string $transcript, array $rubric): ?array
     {
         $criteriaList = '';

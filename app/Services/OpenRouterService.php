@@ -140,6 +140,61 @@ EOT;
         return $result['choices'][0]['message']['content'] ?? null;
     }
 
+    public function streamChat(array $messages, callable $onToken, ?string $model = null): ?string
+    {
+        if (empty($this->apiKey)) {
+            Log::warning('OpenRouter API key not configured');
+            return null;
+        }
+
+        try {
+            $fullContent = '';
+            
+            $response = Http::withHeaders($this->getHeaders())
+                ->timeout(60)
+                ->post($this->baseUrl . '/chat/completions', [
+                    'model' => $model ?? $this->defaultModel,
+                    'messages' => $messages,
+                    'stream' => true,
+                ]);
+
+            if (!$response->successful()) {
+                Log::error('OpenRouter stream error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return null;
+            }
+
+            $stream = $response->getBody();
+            
+            while (!$stream->eof()) {
+                $line = $stream->read(4096);
+                
+                if (strpos($line, 'data: ') === 0) {
+                    $data = substr($line, 6);
+                    
+                    if ($data === '[DONE]') {
+                        break;
+                    }
+                    
+                    $json = json_decode($data, true);
+                    
+                    if (isset($json['choices'][0]['delta']['content'])) {
+                        $token = $json['choices'][0]['delta']['content'];
+                        $fullContent .= $token;
+                        $onToken($token);
+                    }
+                }
+            }
+
+            return $fullContent;
+        } catch (\Exception $e) {
+            Log::error('OpenRouter stream exception', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     public function extractKeyPhrases(string $text): ?array
     {
         $result = $this->chat([

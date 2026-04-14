@@ -176,6 +176,24 @@
     color: #bfdbfe;
 }
 
+.floating-refresh-btn {
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.floating-refresh-btn:hover {
+    opacity: 1;
+}
+
+.floating-refresh-btn.spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .floating-input-area {
     padding: 12px 16px 16px;
     background: rgba(10, 22, 40, 0.8);
@@ -274,12 +292,50 @@
     animation: loading-bounce 1.4s infinite ease-in-out both;
 }
 
-.floating-loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-.floating-loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .floating-loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .floating-loading-dots span:nth-child(2) { animation-delay: -0.16s; }
 
 @keyframes loading-bounce {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
+}
+
+.floating-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+.floating-typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: #60a5fa;
+    border-radius: 50%;
+    animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.floating-typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.floating-typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+.floating-typing-indicator span:nth-child(3) { animation-delay: 0s; }
+
+@keyframes typing-bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+.floating-word-display {
+    display: inline;
+}
+
+.floating-word {
+    opacity: 0;
+    animation: word-appear 0.15s ease-out forwards;
+}
+
+@keyframes word-appear {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 </style>
 
@@ -309,23 +365,28 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                What to Say
+                <span>What to Say</span>
+                <button class="floating-refresh-btn" onclick="handleRefreshSuggestions()" title="Refresh suggestions" style="background:none;border:none;cursor:pointer;padding:2px;margin-left:4px;color:#93c5fd;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
             </div>
-            <p class="floating-suggestion-loading" id="floatingSuggestionText">Loading suggestions...</p>
+            <p class="floating-suggestion-loading" id="floatingSuggestionText">Click refresh to get AI suggestions...</p>
         </div>
 
         <div class="floating-actions">
-            <button class="floating-action-btn" onclick="handleAssist()">
+            <button class="floating-action-btn" onclick="handleRefreshSuggestions()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+                    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
-                Assist
+                Refresh
             </button>
             <button class="floating-action-btn" onclick="handleWhatToSay()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                What to Say?
+                Use Suggestion
             </button>
         </div>
 
@@ -465,7 +526,11 @@
 
     function updateSuggestions(suggestions) {
         if (suggestions && suggestions.what_to_say) {
-            floatingSuggestionText.textContent = suggestions.what_to_say;
+            if (!suggestions.what_to_say.startsWith('<span')) {
+                floatingSuggestionText.innerHTML = escapeHtml(suggestions.what_to_say);
+            } else {
+                floatingSuggestionText.innerHTML = suggestions.what_to_say;
+            }
             floatingSuggestionText.classList.remove('floating-suggestion-loading');
         } else {
             floatingSuggestionText.textContent = 'No suggestions available';
@@ -495,6 +560,7 @@
         }
         
         eventSource = new EventSource(`/live-monitoring/session/${sessionId}/stream`);
+        let lastTranscriptLength = 0;
         
         eventSource.onmessage = (event) => {
             try {
@@ -502,6 +568,12 @@
                 updateTranscript(data.transcripts);
                 updateSuggestions(data.suggestions);
                 updateZtpAlert(data.ztp_alerts);
+                
+                const currentLength = (data.transcript || '').length;
+                if (currentLength > lastTranscriptLength && lastTranscriptLength > 0) {
+                    handleRefreshSuggestions();
+                }
+                lastTranscriptLength = currentLength;
             } catch (e) {
                 console.error('Error parsing SSE data:', e);
             }
@@ -540,15 +612,128 @@
         }
     };
 
+    window.handleRefreshSuggestions = function() {
+        const startTime = performance.now();
+        let fullText = '';
+        
+        floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
+        
+        const refreshBtn = document.querySelector('.floating-refresh-btn');
+        if (refreshBtn) refreshBtn.classList.add('spinning');
+        
+        fetch('/api/live-monitoring/suggestion-stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                type: 'what_to_say'
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function processStream() {
+                reader.read().then(({ done, value }) => {
+                    if (done) {
+                        if (refreshBtn) refreshBtn.classList.remove('spinning');
+                        const latency = performance.now() - startTime;
+                        console.log(`Suggestion latency: ${latency.toFixed(0)}ms`);
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.token) {
+                                    fullText += parsed.token;
+                                    floatingSuggestionText.textContent = fullText;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    processStream();
+                });
+            }
+            
+            processStream();
+        })
+        .catch(error => {
+            console.error('Suggestion error:', error);
+            if (refreshBtn) refreshBtn.classList.remove('spinning');
+            floatingSuggestionText.textContent = 'Failed to load suggestions. Click refresh to try again.';
+        });
+    };
+
     window.sendChatMessage = function() {
         const message = floatingChatInput.value.trim();
         if (!message) return;
         
         floatingChatInput.value = '';
-        floatingSuggestionText.textContent = 'Thinking...';
-        floatingSuggestionText.classList.add('floating-suggestion-loading');
+        floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
         
-        fetch('/api/live-monitoring/chat', {
+        const startTime = performance.now();
+        let fullText = '';
+        
+        function animateWord(token) {
+            fullText += token;
+            const words = fullText.split(/(\s+)/);
+            let html = '';
+            
+            if (words.length > 20) {
+                const recentWords = words.slice(-20);
+                html = escapeHtml(recentWords.slice(0, -1).join(''));
+                html += '<span class="floating-word">' + escapeHtml(recentWords[recentWords.length - 1]) + '</span>';
+            } else {
+                html = escapeHtml(fullText);
+            }
+            
+            floatingSuggestionText.innerHTML = html;
+        }
+        
+        function processStream(reader, decoder) {
+            reader.read().then(({ done, value }) => {
+                if (done) return;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                            const latency = performance.now() - startTime;
+                            console.log(`Chat response latency: ${latency.toFixed(0)}ms`);
+                            return;
+                        }
+                        
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.token) {
+                                animateWord(parsed.token);
+                            }
+                        } catch (e) {}
+                    }
+                }
+                
+                processStream(reader, decoder);
+            });
+        }
+        
+        fetch('/api/live-monitoring/chat-stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -559,17 +744,42 @@
                 question: message
             })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.answer) {
-                floatingSuggestionText.textContent = data.answer;
-                floatingSuggestionText.classList.remove('floating-suggestion-loading');
-            }
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            
+            const latency = performance.now() - startTime;
+            console.log(`First response latency: ${latency.toFixed(0)}ms`);
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            processStream(reader, decoder);
         })
         .catch(error => {
             console.error('Chat error:', error);
-            floatingSuggestionText.textContent = 'Sorry, I could not process that.';
-            floatingSuggestionText.classList.add('floating-suggestion-loading');
+            floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
+            
+            fetch('/api/live-monitoring/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    question: message
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.answer) {
+                    floatingSuggestionText.textContent = data.answer;
+                } else {
+                    floatingSuggestionText.textContent = 'Sorry, I could not process that.';
+                }
+            })
+            .catch(() => {
+                floatingSuggestionText.textContent = 'Sorry, I could not process that.';
+            });
         });
     };
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\CallController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KnowledgeBaseController;
@@ -49,6 +50,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/live-stream', [SupervisorController::class, 'liveStream'])->name('live-stream');
     });
 
+    // Agent Profiles (QA + Admin)
+    Route::prefix('agents')->name('agents.')->middleware('role:qa,admin')->group(function () {
+        Route::get('/', [AgentController::class, 'index'])->name('index');
+        Route::get('/sync', [AgentController::class, 'sync'])->name('sync');
+        Route::post('/{id}/link', [AgentController::class, 'link'])->name('link');
+        Route::post('/{id}/unlink', [AgentController::class, 'unlink'])->name('unlink');
+        Route::get('/{id}', [AgentController::class, 'show'])->name('show');
+    });
+
     // Knowledge Base (Admin only)
     Route::prefix('knowledge-base')->name('knowledge-base.')->middleware('role:admin')->group(function () {
         Route::get('/', [KnowledgeBaseController::class, 'index'])->name('index');
@@ -64,6 +74,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/knowledge-base/search', [KnowledgeBaseController::class, 'apiSearch'])->name('knowledge-base.search');
         Route::post('/live-monitoring/add-transcript', [LiveMonitoringController::class, 'addTranscript'])->name('live-monitoring.add-transcript');
         Route::post('/live-monitoring/chat', [LiveMonitoringController::class, 'chat'])->name('live-monitoring.chat');
+        Route::post('/live-monitoring/chat-stream', [LiveMonitoringController::class, 'chatStream'])->name('live-monitoring.chat-stream');
+        Route::post('/live-monitoring/suggestion-stream', [LiveMonitoringController::class, 'suggestionStream'])->name('live-monitoring.suggestion-stream');
     });
 });
 

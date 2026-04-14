@@ -30,12 +30,23 @@
 
         <!-- Filters -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <form method="GET" action="{{ route('calls.search-ctm') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form method="GET" action="{{ route('calls.search-ctm') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                     <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search Phone</label>
                     <input type="text" name="search" id="search" value="{{ request('search') }}" 
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black"
                         placeholder="Search by phone...">
+                </div>
+                <div>
+                    <label for="agent_id" class="block text-sm font-medium text-gray-700 mb-1">Agent</label>
+                    <select name="agent_id" id="agent_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                        <option value="">All Agents</option>
+                        @foreach($agents ?? [] as $agent)
+                            <option value="{{ $agent->ctm_agent_id }}" {{ request('agent_id') == $agent->ctm_agent_id ? 'selected' : '' }}>
+                                {{ $agent->ctm_agent_name ?? $agent->ctm_agent_email }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
                 <div>
                     <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>

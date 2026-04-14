@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Call;
+use App\Models\Agent;
 use App\Models\QaLog;
 use App\Services\CTMService;
 use App\Services\AssemblyAIService;
@@ -47,9 +48,11 @@ class CallController extends Controller
             $query->where('status', $request->status);
         }
 
+        $agents = Agent::with('user')->get();
+
         $calls = $query->orderBy('call_datetime', 'desc')->paginate(20);
 
-        return view('calls.index', compact('calls'));
+        return view('calls.index', compact('calls', 'agents'));
     }
 
     public function searchCTM(Request $request)
@@ -58,6 +61,7 @@ class CallController extends Controller
             $dateFrom = $request->input('date_from', now()->subMonths(6)->toDateString());
             $dateTo = $request->input('date_to', now()->toDateString());
             $search = $request->input('search', '');
+            $agentId = $request->input('agent_id', '');
             $limit = min((int)$request->input('limit', 500), 1000);
 
             $startDate = \Carbon\Carbon::parse($dateFrom)->startOfDay();
@@ -77,13 +81,19 @@ class CallController extends Controller
 
             if (!empty($search)) {
                 $searchNormalized = preg_replace('/[^0-9]/', '', $search);
-                $calls = $calls->filter(function ($call) use ($searchNormalized) {
+                $calls = $calls->filter(function ($call) use ($searchNormalized, $search) {
                     $callerNumber = preg_replace('/[^0-9]/', '', $call['caller_number'] ?? '');
                     $trackingNumber = preg_replace('/[^0-9]/', '', $call['tracking_number'] ?? '');
                     return stripos($callerNumber, $searchNormalized) !== false 
                         || stripos($trackingNumber, $searchNormalized) !== false
                         || stripos($call['caller_number'] ?? '', $search) !== false
                         || stripos($call['tracking_number'] ?? '', $search) !== false;
+                });
+            }
+
+            if (!empty($agentId)) {
+                $calls = $calls->filter(function ($call) use ($agentId) {
+                    return ($call['agent_id'] ?? '') === $agentId;
                 });
             }
 
@@ -94,7 +104,12 @@ class CallController extends Controller
             if (!empty($search)) {
                 $query->search($search);
             }
+            if (!empty($agentId)) {
+                $query->where('agent_id', $agentId);
+            }
             $localCalls = $query->get()->keyBy('ctm_call_id');
+
+            $agents = Agent::with('user')->get();
 
             return view('calls.index', [
                 'calls' => $calls->take(20),
@@ -104,6 +119,7 @@ class CallController extends Controller
                 'searchFrom' => 'ctm',
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
+                'agents' => $agents,
             ]);
         } catch (\Exception $e) {
             Log::error('CTM Search error', ['error' => $e->getMessage()]);
