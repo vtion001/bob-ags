@@ -49,6 +49,15 @@ class CallController extends Controller
             $query->where('agent_id', $request->agent_id);
         }
 
+        $userGroupIds = $request->input('user_groups', []);
+        if (is_string($userGroupIds) && ! empty($userGroupIds)) {
+            $userGroupIds = array_filter(explode(',', $userGroupIds));
+        }
+        if (! empty($userGroupIds)) {
+            $userIds = $this->ctm->getUserGroupUserIds($userGroupIds);
+            $query->whereIn('agent_id', $userIds);
+        }
+
         if ($request->filled('date_from')) {
             $query->where('call_datetime', '>=', $request->date_from);
         }
@@ -74,10 +83,16 @@ class CallController extends Controller
         }
 
         $agents = Agent::with('user')->get();
+        $userGroups = $this->ctm->getUserGroupsFromAPI();
 
         $calls = $query->orderBy('call_datetime', 'desc')->paginate(20);
 
-        return view('calls.index', compact('calls', 'agents'));
+        return view('calls.index', [
+            'calls' => $calls,
+            'agents' => $agents,
+            'userGroups' => $userGroups,
+            'selectedUserGroups' => $userGroupIds,
+        ]);
     }
 
     public function searchCTM(Request $request)
@@ -92,6 +107,11 @@ class CallController extends Controller
             $scoreMin = $request->filled('score_min') ? (int) $request->input('score_min') : null;
             $disposition = $request->input('disposition', '');
             $limit = min((int) $request->input('limit', 500), 1000);
+
+            $userGroupIds = $request->input('user_groups', []);
+            if (is_string($userGroupIds)) {
+                $userGroupIds = array_filter(explode(',', $userGroupIds));
+            }
 
             $startDate = Carbon::parse($dateFrom)->startOfDay();
             $endDate = Carbon::parse($dateTo)->endOfDay();
@@ -133,10 +153,19 @@ class CallController extends Controller
                 $calls = $calls->filter(fn ($call) => ($call['duration'] ?? 0) >= $durationMin);
             }
 
+            if (! empty($userGroupIds)) {
+                $userIds = $this->ctm->getUserGroupUserIds($userGroupIds);
+                Log::debug('User group filter applied', [
+                    'group_ids' => $userGroupIds,
+                    'user_ids' => $userIds,
+                    'total_calls' => $calls->count(),
+                ]);
+                $calls = $calls->filter(fn ($call) => in_array($call['agent_id'] ?? null, $userIds));
+            }
+
             $totalEntries = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
             $filteredCount = $calls->count();
 
-            // Load local records for cross-reference (score/disposition live here)
             $localQuery = Call::query()->with('qaLog');
             if (! empty($search)) {
                 $localQuery->search($search);
@@ -144,9 +173,12 @@ class CallController extends Controller
             if (! empty($agentId)) {
                 $localQuery->where('agent_id', $agentId);
             }
+            if (! empty($userGroupIds)) {
+                $localUserIds = $this->ctm->getUserGroupUserIds($userGroupIds);
+                $localQuery->whereIn('agent_id', $localUserIds);
+            }
             $localCalls = $localQuery->get()->keyBy('ctm_call_id');
 
-            // Score and disposition filters apply only to locally-synced calls
             if ($scoreMin !== null || ! empty($disposition)) {
                 $calls = $calls->filter(function ($call) use ($localCalls, $scoreMin, $disposition) {
                     $callId = $call['id'] ?? null;
@@ -167,6 +199,7 @@ class CallController extends Controller
             }
 
             $agents = Agent::with('user')->get();
+            $userGroups = $this->ctm->getUserGroupsFromAPI();
 
             return view('calls.index', [
                 'calls' => $calls->take(20),
@@ -177,6 +210,8 @@ class CallController extends Controller
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
                 'agents' => $agents,
+                'userGroups' => $userGroups,
+                'selectedUserGroups' => $userGroupIds,
             ]);
         } catch (\Exception $e) {
             Log::error('CTM Search error', ['error' => $e->getMessage()]);

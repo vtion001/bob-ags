@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class AssemblyAIService
 {
     protected string $apiKey;
+
     protected string $baseUrl;
+
     protected string $streamingUrl;
 
     public function __construct()
@@ -32,9 +34,10 @@ class AssemblyAIService
             $response = Http::withHeaders([
                 'Authorization' => $this->apiKey,
             ])
-            ->timeout(60)
-            ->withBody(fopen($filePath, 'r'), 'audio/mpeg')
-            ->post($this->baseUrl . '/v2/upload');
+                ->withoutVerifying()
+                ->timeout(60)
+                ->withBody(fopen($filePath, 'r'), 'audio/mpeg')
+                ->post($this->baseUrl.'/v2/upload');
 
             if ($response->successful()) {
                 return $response->json()['upload_url'];
@@ -48,6 +51,7 @@ class AssemblyAIService
             return null;
         } catch (\Exception $e) {
             Log::error('AssemblyAI upload exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -63,7 +67,8 @@ class AssemblyAIService
             ], $options);
 
             $response = Http::withHeaders($this->getHeaders())
-                ->post($this->baseUrl . '/v2/transcript', $data);
+                ->withoutVerifying()
+                ->post($this->baseUrl.'/v2/transcript', $data);
 
             if ($response->successful()) {
                 return $response->json();
@@ -77,6 +82,7 @@ class AssemblyAIService
             return null;
         } catch (\Exception $e) {
             Log::error('AssemblyAI transcribe exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -85,7 +91,8 @@ class AssemblyAIService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
-                ->get($this->baseUrl . '/v2/transcript/' . $transcriptId);
+                ->withoutVerifying()
+                ->get($this->baseUrl.'/v2/transcript/'.$transcriptId);
 
             if ($response->successful()) {
                 return $response->json();
@@ -102,6 +109,7 @@ class AssemblyAIService
                 'transcript_id' => $transcriptId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -113,7 +121,7 @@ class AssemblyAIService
         while ($attempts < $maxAttempts) {
             $transcript = $this->getTranscript($transcriptId);
 
-            if (!$transcript) {
+            if (! $transcript) {
                 return null;
             }
 
@@ -128,6 +136,7 @@ class AssemblyAIService
                     'transcript_id' => $transcriptId,
                     'error' => $transcript['error'] ?? 'Unknown error',
                 ]);
+
                 return null;
             }
 
@@ -136,6 +145,7 @@ class AssemblyAIService
         }
 
         Log::warning('AssemblyAI poll timeout', ['transcript_id' => $transcriptId]);
+
         return null;
     }
 
@@ -143,7 +153,8 @@ class AssemblyAIService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
-                ->get($this->baseUrl . '/v2/transcript/' . $transcriptId . '/subtitles', [
+                ->withoutVerifying()
+                ->get($this->baseUrl.'/v2/transcript/'.$transcriptId.'/subtitles', [
                     'format' => $format,
                 ]);
 
@@ -162,6 +173,7 @@ class AssemblyAIService
                 'transcript_id' => $transcriptId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -170,7 +182,8 @@ class AssemblyAIService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
-                ->get($this->baseUrl . '/v2/transcript/' . $transcriptId . '/words');
+                ->withoutVerifying()
+                ->get($this->baseUrl.'/v2/transcript/'.$transcriptId.'/words');
 
             if ($response->successful()) {
                 return $response->json();
@@ -187,6 +200,7 @@ class AssemblyAIService
                 'transcript_id' => $transcriptId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }

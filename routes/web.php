@@ -10,7 +10,6 @@ use App\Http\Controllers\RecordingController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\WebhookController;
-use App\Services\CTMService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -53,16 +52,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [SupervisorController::class, 'index'])->name('index');
         Route::get('/live-stream', [SupervisorController::class, 'liveStream'])->name('live-stream');
     });
-
-    // Debug route (Admin only) - REMOVE AFTER TESTING
-    Route::get('/debug/users', function (CTMService $ctm) {
-        $users = $ctm->getCTMUsers();
-
-        return response()->json([
-            'count' => count($users ?? []),
-            'users' => $users,
-        ], 200, [], JSON_PRETTY_PRINT);
-    })->middleware('role:admin');
 
     // Agent Profiles (QA + Admin)
     Route::prefix('agents')->name('agents.')->middleware('role:qa,admin')->group(function () {

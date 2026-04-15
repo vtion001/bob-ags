@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Call;
-use App\Services\AssemblyAIService;
+use App\Services\OpenAIService;
 use App\Services\QAAnalysisService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,7 +30,7 @@ class TranscribeCallJob implements ShouldQueue
         $this->recordingUrl = $recordingUrl;
     }
 
-    public function handle(AssemblyAIService $assemblyAI, QAAnalysisService $qa): void
+    public function handle(OpenAIService $openAI, QAAnalysisService $qa): void
     {
         $call = Call::find($this->callId);
 
@@ -40,16 +40,16 @@ class TranscribeCallJob implements ShouldQueue
             return;
         }
 
-        Log::info('TranscribeCallJob: Starting transcription', [
+        Log::info('TranscribeCallJob: Starting transcription with OpenAI Whisper', [
             'call_id' => $this->callId,
             'recording_url' => $this->recordingUrl,
         ]);
 
-        // Submit transcription job to AssemblyAI
-        $transcript = $assemblyAI->transcribe($this->recordingUrl);
+        // Transcribe using OpenAI Whisper
+        $transcript = $openAI->transcribe($this->recordingUrl);
 
-        if (! $transcript || ! isset($transcript['id'])) {
-            Log::error('TranscribeCallJob: Failed to submit transcription', [
+        if (! $transcript || empty($transcript['text'])) {
+            Log::error('TranscribeCallJob: OpenAI Whisper transcription failed', [
                 'call_id' => $this->callId,
                 'response' => $transcript,
             ]);
@@ -59,28 +59,9 @@ class TranscribeCallJob implements ShouldQueue
             return;
         }
 
-        Log::info('TranscribeCallJob: Transcription submitted, polling for results', [
-            'call_id' => $this->callId,
-            'transcript_id' => $transcript['id'],
-        ]);
-
-        // Poll for transcription completion
-        $result = $assemblyAI->pollTranscript($transcript['id'], 60, 5);
-
-        if (! $result) {
-            Log::error('TranscribeCallJob: Transcription polling timeout or failed', [
-                'call_id' => $this->callId,
-                'transcript_id' => $transcript['id'],
-            ]);
-
-            $call->update(['status' => 'transcription_failed']);
-
-            return;
-        }
-
         // Extract transcript text
-        $transcriptText = $result['text'] ?? '';
-        $transcriptJson = $result['words'] ?? null;
+        $transcriptText = $transcript['text'] ?? '';
+        $transcriptJson = $transcript['words'] ?? null;
 
         // Detect if call was transferred
         $isTransferred = $qa->detectTransfer($transcriptText);

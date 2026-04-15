@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 class OpenAIService
 {
     protected string $apiKey;
+
     protected string $baseUrl;
+
     protected string $defaultModel;
 
     public function __construct()
@@ -22,22 +24,72 @@ class OpenAIService
     protected function getHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Authorization' => 'Bearer '.$this->apiKey,
             'Content-Type' => 'application/json',
         ];
+    }
+
+    public function transcribe(string $audioUrl): ?array
+    {
+        if (empty($this->apiKey)) {
+            Log::warning('OpenAI API key not configured');
+
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+            ])
+                ->timeout(120)
+                ->attach(
+                    'file',
+                    file_get_contents($audioUrl),
+                    'audio.mp3',
+                    ['Content-Type' => 'audio/mpeg']
+                )
+                ->post($this->baseUrl.'/audio/transcriptions', [
+                    'model' => 'whisper-1',
+                    'response_format' => 'verbose_json',
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                return [
+                    'id' => uniqid('whisper_'),
+                    'text' => $data['text'] ?? '',
+                    'words' => $data['words'] ?? null,
+                    'language' => $data['language'] ?? null,
+                    'duration' => $data['duration'] ?? null,
+                ];
+            }
+
+            Log::error('OpenAI Whisper transcription error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('OpenAI Whisper transcription exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     public function chat(array $messages, ?string $model = null): ?array
     {
         if (empty($this->apiKey)) {
             Log::warning('OpenAI API key not configured');
+
             return null;
         }
 
         try {
             $response = Http::withHeaders($this->getHeaders())
                 ->timeout(60)
-                ->post($this->baseUrl . '/chat/completions', [
+                ->post($this->baseUrl.'/chat/completions', [
                     'model' => $model ?? $this->defaultModel,
                     'messages' => $messages,
                 ]);
@@ -54,6 +106,7 @@ class OpenAIService
             return null;
         } catch (\Exception $e) {
             Log::error('OpenAI chat exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -62,42 +115,44 @@ class OpenAIService
     {
         if (empty($this->apiKey)) {
             Log::warning('OpenAI API key not configured');
+
             return null;
         }
 
         try {
             $fullContent = '';
-            
+
             $response = Http::withHeaders($this->getHeaders())
                 ->timeout(60)
-                ->post($this->baseUrl . '/chat/completions', [
+                ->post($this->baseUrl.'/chat/completions', [
                     'model' => $model ?? $this->defaultModel,
                     'messages' => $messages,
                     'stream' => true,
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('OpenAI stream error', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
+
                 return null;
             }
 
             $stream = $response->getBody();
-            
-            while (!$stream->eof()) {
+
+            while (! $stream->eof()) {
                 $line = $stream->read(4096);
-                
+
                 if (strpos($line, 'data: ') === 0) {
                     $data = substr($line, 6);
-                    
+
                     if ($data === '[DONE]') {
                         break;
                     }
-                    
+
                     $json = json_decode($data, true);
-                    
+
                     if (isset($json['choices'][0]['delta']['content'])) {
                         $token = $json['choices'][0]['delta']['content'];
                         $fullContent .= $token;
@@ -109,6 +164,7 @@ class OpenAIService
             return $fullContent;
         } catch (\Exception $e) {
             Log::error('OpenAI stream exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -120,7 +176,7 @@ class OpenAIService
             ['role' => 'user', 'content' => "Summarize this call transcript:\n\n{$text}"],
         ], $model ?? $this->defaultModel);
 
-        if (!$result) {
+        if (! $result) {
             return null;
         }
 
@@ -134,7 +190,7 @@ class OpenAIService
             $criteriaList .= "{$id}: {$criterion['name']}\n";
         }
 
-        $systemPrompt = <<<EOT
+        $systemPrompt = <<<'EOT'
 You are a QA analyst for a substance abuse helpline. Evaluate call transcripts against the provided rubric criteria.
 Return ONLY the evaluation in the exact format specified, nothing else.
 EOT;
@@ -160,7 +216,7 @@ EOT;
             ['role' => 'user', 'content' => $userPrompt],
         ]);
 
-        if (!$result) {
+        if (! $result) {
             return null;
         }
 
@@ -174,10 +230,14 @@ EOT;
 
         foreach ($lines as $line) {
             $line = trim($line);
-            if (empty($line)) continue;
+            if (empty($line)) {
+                continue;
+            }
 
             $parts = explode('|', $line);
-            if (count($parts) < 3) continue;
+            if (count($parts) < 3) {
+                continue;
+            }
 
             $id = trim($parts[0]);
             $status = strtoupper(trim($parts[1]));

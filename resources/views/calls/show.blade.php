@@ -207,13 +207,6 @@
                             Run QA Analysis
                         </button>
                     </form>
-                    @elseif($call->recording_url)
-                    <form method="POST" action="{{ route('calls.transcribe', $call->ctm_call_id ?? $call->id) }}">
-                        @csrf
-                        <button type="submit" class="w-full bg-navy-900 hover:bg-navy-800 text-white px-4 py-3 rounded-lg font-medium">
-                            Transcribe Recording
-                        </button>
-                    </form>
                     @endif
                 @endif
 

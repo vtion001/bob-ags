@@ -58,6 +58,30 @@
                     </select>
                 </div>
                 <div>
+                    <label for="user_groups" class="block text-sm font-medium text-gray-700 mb-1">User Groups</label>
+                    <select name="user_groups[]" id="user_groups" multiple
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black min-h-[100px]">
+                        @if(isset($userGroups) && is_array($userGroups))
+                            @foreach($userGroups as $group)
+                                @php
+                                    $groupName = is_array($group) ? ($group['name'] ?? ($group['user_group'] ?? '')) : (string) $group;
+                                    $groupId = is_array($group) ? ($group['id'] ?? $groupName) : $groupName;
+                                    $selectedUserGroups = $selectedUserGroups ?? [];
+                                    if (is_string($selectedUserGroups)) {
+                                        $selectedUserGroups = array_filter(explode(',', $selectedUserGroups));
+                                    }
+                                    $isSelected = in_array((string)$groupId, array_map('strval', $selectedUserGroups ?? []));
+                                @endphp
+                                @if(!empty($groupName))
+                                    <option value="{{ $groupId }}" {{ $isSelected ? 'selected' : '' }}>
+                                        {{ $groupName }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+                <div>
                     <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
                     <input type="date" name="date_from" id="date_from"
                         value="{{ request('date_from', now()->subMonths(6)->format('Y-m-d')) }}"

@@ -178,6 +178,120 @@ class CTMService
         }
     }
 
+    public function getUserGroupsFromAPI(): ?array
+    {
+        try {
+            $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
+                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/user_groups");
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $groups = $data['user_groups'] ?? [];
+
+                Log::debug('CTM getUserGroupsFromAPI response', [
+                    'status' => $response->status(),
+                    'count' => count($groups),
+                ]);
+
+                return $groups;
+            }
+
+            Log::error('CTM getUserGroupsFromAPI error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('CTM getUserGroupsFromAPI exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function getUserGroupById(int $groupId): ?array
+    {
+        try {
+            $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
+                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/user_groups/{$groupId}");
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                Log::debug('CTM getUserGroupById response', [
+                    'group_id' => $groupId,
+                    'has_user_ids' => isset($data['user_ids']),
+                    'user_count' => isset($data['user_ids']) ? count($data['user_ids']) : 0,
+                ]);
+
+                return $data;
+            }
+
+            Log::error('CTM getUserGroupById error', [
+                'group_id' => $groupId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('CTM getUserGroupById exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function getUserGroupUserIds(array $groupIds): array
+    {
+        $hashedAgentIds = [];
+
+        foreach ($groupIds as $groupId) {
+            $group = $this->getUserGroupById((int) $groupId);
+            if ($group && isset($group['user_ids']) && is_array($group['user_ids'])) {
+                foreach ($group['user_ids'] as $uid) {
+                    $agent = $this->getAgentById((string) $uid);
+                    if ($agent && ! empty($agent['ctm_agent_id'])) {
+                        $hashedAgentIds[] = $agent['ctm_agent_id'];
+                    }
+                }
+            }
+        }
+
+        return array_unique($hashedAgentIds);
+    }
+
+    public function deleteUserGroup(string $userGroupId): bool
+    {
+        try {
+            $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
+                ->delete("https://{$this->host}/api/v1/accounts/{$this->accountId}/user_groups/{$userGroupId}");
+
+            if ($response->successful()) {
+                Log::info('CTM deleteUserGroup success', ['user_group_id' => $userGroupId]);
+
+                return true;
+            }
+
+            Log::error('CTM deleteUserGroup error', [
+                'user_group_id' => $userGroupId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('CTM deleteUserGroup exception', [
+                'user_group_id' => $userGroupId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     public function getAgentById(string $agentId): ?array
     {
         try {
