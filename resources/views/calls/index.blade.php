@@ -125,6 +125,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Direction</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Talk</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Agent</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Score</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Disposition</th>
@@ -139,6 +140,8 @@
                                 $direction = is_object($call) ? $call->direction : ($call['direction'] ?? 'inbound');
                                 $callDatetime = is_object($call) ? $call->call_datetime : (\Carbon\Carbon::parse($call['timestamp'] ?? null) ?? null);
                                 $duration = is_object($call) ? $call->duration : ($call['duration'] ?? 0);
+                                $talkTime = is_object($call) ? $call->talk_time : ($call['talk_time'] ?? null);
+                                $transferred = is_object($call) ? $call->transferred : ($call['transferred'] ?? false);
                                 $agentName = is_object($call) ? $call->agent_name : ($call['agent']['name'] ?? $call['agent_name'] ?? null);
                                 $qaLog = is_object($call) ? $call->qaLog : (isset($localCalls[$callId]) ? $localCalls[$callId]->qaLog : null);
                             @endphp
@@ -160,6 +163,16 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-black">{{ $duration ?? 0 }}s</td>
+                                <td class="px-4 py-3 text-sm">
+                                    @if($talkTime)
+                                        <span class="text-black">{{ $talkTime }}s</span>
+                                        @if($transferred)
+                                            <span class="ml-1" title="Transferred">🔄</span>
+                                        @endif
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-sm text-black">{{ $agentName ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
                                     @if($qaLog?->total_score)

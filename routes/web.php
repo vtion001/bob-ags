@@ -6,9 +6,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\LiveMonitoringController;
 use App\Http\Controllers\QAController;
+use App\Http\Controllers\RecordingController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\WebhookController;
+use App\Services\CTMService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -23,6 +25,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/sync', [CallController::class, 'sync'])->name('sync');
         Route::get('/search-ctm', [CallController::class, 'searchCTM'])->name('search-ctm');
         Route::get('/{ctmCallId}', [CallController::class, 'show'])->name('show');
+        Route::get('/{ctmCallId}/recording', [RecordingController::class, 'show'])->name('recording');
+        Route::get('/{ctmCallId}/recording/download', [RecordingController::class, 'download'])->name('recording-download');
         Route::post('/{ctmCallId}/analyze', [CallController::class, 'analyze'])->name('analyze');
         Route::post('/{ctmCallId}/transcribe', [CallController::class, 'transcribe'])->name('transcribe');
     });
@@ -50,10 +54,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/live-stream', [SupervisorController::class, 'liveStream'])->name('live-stream');
     });
 
+    // Debug route (Admin only) - REMOVE AFTER TESTING
+    Route::get('/debug/users', function (CTMService $ctm) {
+        $users = $ctm->getCTMUsers();
+
+        return response()->json([
+            'count' => count($users ?? []),
+            'users' => $users,
+        ], 200, [], JSON_PRETTY_PRINT);
+    })->middleware('role:admin');
+
     // Agent Profiles (QA + Admin)
     Route::prefix('agents')->name('agents.')->middleware('role:qa,admin')->group(function () {
         Route::get('/', [AgentController::class, 'index'])->name('index');
         Route::get('/sync', [AgentController::class, 'sync'])->name('sync');
+        Route::post('/save-filters', [AgentController::class, 'saveFilters'])->name('save-filters');
         Route::get('/search-phillies', [AgentController::class, 'searchPhillies'])->name('search-phillies');
         Route::post('/{id}/link', [AgentController::class, 'link'])->name('link');
         Route::post('/{id}/unlink', [AgentController::class, 'unlink'])->name('unlink');

@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "concurrently -c \"#93c5fd,#c4b5fd,#fb923c,#6ee7b7\" \"vite\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" --names=vite,server,queue,logs --kill-others"
     },
     "devDependencies": {
         "@playwright/test": "^1.59.1",

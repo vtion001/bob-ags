@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class QAAnalysisService
 {
     protected OpenRouterService $openRouter;
+
     protected array $rubric;
+
     protected array $criteria;
+
     protected array $ztpCriteria;
+
     protected array $alwaysNaCriteria;
 
     public function __construct(OpenRouterService $openRouter)
@@ -65,6 +68,7 @@ class QAAnalysisService
                     'points' => $criterion['points'],
                 ];
                 $results['na_criteria']++;
+
                 continue;
             }
 
@@ -82,7 +86,7 @@ class QAAnalysisService
 
             $deduction = $pass ? 0 : $criterion['points'];
 
-            if ($criterion['ztp'] && !$pass) {
+            if ($criterion['ztp'] && ! $pass) {
                 $deduction = 0;
                 $results['ztp_violations'][] = $id;
             }
@@ -94,7 +98,7 @@ class QAAnalysisService
                 'pass' => $pass,
                 'na' => false,
                 'ztp' => $criterion['ztp'],
-                'autoFail' => $criterion['ztp'] && !$pass,
+                'autoFail' => $criterion['ztp'] && ! $pass,
                 'details' => $details,
                 'deduction' => $deduction,
                 'severity' => $criterion['severity'],
@@ -153,7 +157,7 @@ class QAAnalysisService
             $details = $pass ? 'No ZTP violations detected' : "ZTP violation: {$matchedPhrase}";
         } else {
             $pass = ($passCount > $failCount);
-            $details = $pass ? "Matched: {$matchedPhrase}" : "No clear pass phrases found";
+            $details = $pass ? "Matched: {$matchedPhrase}" : 'No clear pass phrases found';
         }
 
         return [
@@ -180,7 +184,9 @@ class QAAnalysisService
         ];
 
         foreach ($results['rubric_results'] as $id => $result) {
-            if ($result['na']) continue;
+            if ($result['na']) {
+                continue;
+            }
 
             $category = $result['category'];
             $points = $result['points'];
@@ -220,6 +226,7 @@ class QAAnalysisService
         }
 
         $results['rubric_breakdown'] = $breakdown;
+
         return $results;
     }
 
@@ -230,6 +237,7 @@ class QAAnalysisService
         if ($hasZtpViolation) {
             $results['score'] = 0;
             $results['sentiment'] = 'negative';
+
             return $results;
         }
 
@@ -281,11 +289,11 @@ class QAAnalysisService
 
         $failedCategories = [];
         foreach ($results['rubric_results'] as $id => $result) {
-            if (!$result['pass'] && !$result['na']) {
+            if (! $result['pass'] && ! $result['na']) {
                 $category = $result['category'];
-                if (!in_array($category, $failedCategories)) {
+                if (! in_array($category, $failedCategories)) {
                     $failedCategories[] = $category;
-                    $tags[] = $category . '-gap';
+                    $tags[] = $category.'-gap';
                 }
 
                 if (in_array($id, ['3.4'])) {
@@ -305,6 +313,7 @@ class QAAnalysisService
         }
 
         $results['tags'] = $tags;
+
         return $results;
     }
 
@@ -318,10 +327,11 @@ class QAAnalysisService
         $summary = "QA Score: {$score}/100 | {$passed}/{$results['total_criteria']} criteria passed | {$failed} failed";
 
         if ($ztpCount > 0) {
-            $summary .= " | ZTP Violations: {$ztpCount} (" . implode(', ', $results['ztp_violations']) . ")";
+            $summary .= " | ZTP Violations: {$ztpCount} (".implode(', ', $results['ztp_violations']).')';
         }
 
         $results['summary'] = $summary;
+
         return $results;
     }
 
@@ -330,15 +340,17 @@ class QAAnalysisService
         $score = $results['score'];
         $hasZtpViolation = count($results['ztp_violations']) > 0;
         $failed3_4 = in_array('3.4', array_column($results['rubric_results'], 'id'))
-            && !($results['rubric_results']['3.4']['pass'] ?? true);
+            && ! ($results['rubric_results']['3.4']['pass'] ?? true);
 
         if ($hasZtpViolation) {
             $results['disposition'] = 'auto-fail';
+
             return $results;
         }
 
         if ($failed3_4) {
             $results['disposition'] = 'unqualified';
+
             return $results;
         }
 
@@ -353,5 +365,47 @@ class QAAnalysisService
         }
 
         return $results;
+    }
+
+    public function detectTransfer(string $transcript): bool
+    {
+        if (empty(trim($transcript))) {
+            return false;
+        }
+
+        $transferPatterns = [
+            '/\btransfer\b/i',
+            '/\btransferring\b/i',
+            '/\blet me transfer\b/i',
+            '/\btransfer you\b/i',
+            '/\btransferring you\b/i',
+            '/\bconnecting you to\b/i',
+            '/\bone moment\b/i',
+            '/\bhold on\b/i',
+            '/\bwill transfer\b/i',
+            '/\bpatch you through\b/i',
+            '/\btransferring to\b/i',
+            '/\btransferring call\b/i',
+            '/\btransfer this\b/i',
+            '/\bforwarding\b/i',
+            '/\bforward to\b/i',
+            '/\bswitching you\b/i',
+            '/\blet me get\b/i',
+            '/\bconnect you\b/i',
+            '/\bconnecting\b/i',
+        ];
+
+        foreach ($transferPatterns as $pattern) {
+            if (preg_match($pattern, $transcript)) {
+                Log::debug('QAAnalysisService: Transfer detected', [
+                    'pattern' => $pattern,
+                    'matched' => true,
+                ]);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }

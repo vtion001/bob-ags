@@ -17,13 +17,58 @@
         @endif
 
         <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold text-black">Agent Profiles</h1>
-            <form method="GET" action="{{ route('agents.sync') }}">
-                <button type="submit" class="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg font-medium">
-                    Sync from CTM
-                </button>
-            </form>
+        <div class="flex flex-col gap-4 mb-6">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-bold text-black">Agent Profiles</h1>
+                <form method="GET" action="{{ route('agents.sync') }}">
+                    <button type="submit" class="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg font-medium">
+                        Sync from CTM
+                    </button>
+                </form>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <form method="POST" action="{{ route('agents.save-filters') }}" class="flex flex-wrap items-end gap-3">
+                    @csrf
+                    <div class="flex flex-col gap-1">
+                        <label for="user_group" class="text-xs font-medium text-gray-600 uppercase tracking-wider">User Group</label>
+                        <select name="user_group" id="user_group" class="rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black text-sm min-w-[180px]">
+                            <option value="">All Groups</option>
+                            @foreach($userGroups as $group)
+                                <option value="{{ $group }}" {{ $savedUserGroup === $group ? 'selected' : '' }}>
+                                    {{ $group }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label for="email_domain" class="text-xs font-medium text-gray-600 uppercase tracking-wider">Email Domain</label>
+                        <input
+                            type="text"
+                            name="email_domain"
+                            id="email_domain"
+                            value="{{ $savedEmailDomain }}"
+                            placeholder="@yourcompany.com"
+                            class="rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black text-sm min-w-[180px]"
+                        />
+                    </div>
+                    <button type="submit" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium text-sm">
+                        Save Filters
+                    </button>
+                </form>
+                @if($savedEmailDomain || $savedUserGroup)
+                    <p class="text-xs text-gray-500 mt-2">
+                        Active filters:
+                        @if($savedUserGroup)
+                            <span class="font-medium">Group: {{ $savedUserGroup }}</span>
+                        @endif
+                        @if($savedEmailDomain)
+                            <span class="font-medium ml-2">Domain: {{ $savedEmailDomain }}</span>
+                        @endif
+                    </p>
+                @endif
+            </div>
         </div>
 
         <!-- Stats Cards -->

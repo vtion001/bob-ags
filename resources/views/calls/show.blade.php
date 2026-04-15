@@ -11,6 +11,7 @@
         <pre class="mt-2 text-xs overflow-auto max-h-96">{{ print_r([
             'id' => $call->id,
             'ctm_call_id' => $call->ctm_call_id,
+            'ctm_sid' => $call->ctm_sid,
             'caller_number' => $call->caller_number,
             'direction' => $call->direction,
             'duration' => $call->duration,
@@ -19,11 +20,13 @@
             'call_datetime' => $call->call_datetime,
             'source' => $call->source,
             'tracking_label' => $call->tracking_label,
-            'recording_url' => $call->recording_url ? 'present' : 'null',
-            'transcript_text' => $call->transcript_text ? 'present (' . strlen($call->transcript_text) . ' chars)' : 'null',
+            'recording_url' => $call->recording_url,
+            'recording_url_present' => !empty($call->recording_url),
+            'transcript_text_present' => !empty($call->transcript_text),
+            'transcript_text_length' => $call->transcript_text ? strlen($call->transcript_text) : 0,
             'status' => $call->status,
             'has_qaLog' => $call->qaLog ? 'Yes' : 'No',
-            'qaLog_score' => $call->qaLog?->total_score,
+            'qaLog_total_score' => $call->qaLog ? $call->qaLog->getAttribute('total_score') : null,
         ], true) }}</pre>
     </details>
 </div>
@@ -44,7 +47,14 @@
             <div class="lg:col-span-2 space-y-6">
                 <!-- Call Details Card -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-xl font-bold text-black mb-4">Call Details</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-black">Call Details</h2>
+                        @if($call->transferred)
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
+                            🔄 Transferred
+                        </span>
+                        @endif
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-sm text-gray-500">Phone Number</p>
@@ -59,9 +69,15 @@
                             <p class="font-medium text-black">{{ $call->call_datetime ? $call->call_datetime->format('M d, Y g:i A') : 'N/A' }}</p>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500">Duration</p>
+                            <p class="text-sm text-gray-500">Total Duration</p>
                             <p class="font-medium text-black">{{ $call->duration ?? 0 }} seconds</p>
                         </div>
+                        @if($call->talk_time)
+                        <div>
+                            <p class="text-sm text-gray-500">Talk Time</p>
+                            <p class="font-medium text-black">{{ $call->talk_time }} seconds</p>
+                        </div>
+                        @endif
                         <div>
                             <p class="text-sm text-gray-500">Agent</p>
                             <p class="font-medium text-black">{{ $call->agent_name ?? 'N/A' }}</p>
@@ -77,10 +93,23 @@
                 @if($call->recording_url)
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-bold text-black mb-4">Recording</h2>
-                    <audio controls class="w-full">
-                        <source src="{{ $call->recording_url }}" type="audio/mpeg">
+                    <audio controls class="w-full mb-4">
+                        <source src="{{ route('calls.recording', $call->ctm_call_id) }}">
                         Your browser does not support the audio element.
                     </audio>
+                    <div class="flex gap-2">
+                        @if(!$call->transcript_text)
+                        <form method="POST" action="{{ route('calls.transcribe', $call->ctm_call_id ?? $call->id) }}" class="flex-1">
+                            @csrf
+                            <button type="submit" class="w-full bg-navy-900 hover:bg-navy-800 text-white px-4 py-3 rounded-lg font-medium">
+                                Transcribe Recording
+                            </button>
+                        </form>
+                        @endif
+                        <a href="{{ route('calls.recording-download', $call->ctm_call_id) }}" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg font-medium text-center">
+                            Download
+                        </a>
+                    </div>
                 </div>
                 @endif
 
@@ -178,8 +207,13 @@
                             Run QA Analysis
                         </button>
                     </form>
-                    @else
-                    <p class="text-sm text-gray-500 text-center">Transcript needed for analysis</p>
+                    @elseif($call->recording_url)
+                    <form method="POST" action="{{ route('calls.transcribe', $call->ctm_call_id ?? $call->id) }}">
+                        @csrf
+                        <button type="submit" class="w-full bg-navy-900 hover:bg-navy-800 text-white px-4 py-3 rounded-lg font-medium">
+                            Transcribe Recording
+                        </button>
+                    </form>
                     @endif
                 @endif
 

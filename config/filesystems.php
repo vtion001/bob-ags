@@ -60,6 +60,14 @@ return [
             'report' => false,
         ],
 
+        'recordings' => [
+            'driver' => 'local',
+            'root' => storage_path('app/recordings'),
+            'serve' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

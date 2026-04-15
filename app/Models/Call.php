@@ -14,6 +14,7 @@ class Call extends Model
     protected $fillable = [
         'user_id',
         'ctm_call_id',
+        'ctm_sid',
         'tracking_number',
         'tracking_label',
         'caller_number',
@@ -24,6 +25,8 @@ class Call extends Model
         'agent_name',
         'agent_id',
         'recording_url',
+        'local_recording_path',
+        'transferred',
         'transcript_url',
         'transcript_text',
         'transcript_json',
@@ -31,6 +34,7 @@ class Call extends Model
         'status',
         'call_datetime',
         'duration',
+        'talk_time',
     ];
 
     protected function casts(): array
@@ -39,6 +43,8 @@ class Call extends Model
             'transcript_json' => 'array',
             'call_datetime' => 'datetime',
             'duration' => 'integer',
+            'talk_time' => 'integer',
+            'transferred' => 'boolean',
         ];
     }
 
@@ -69,10 +75,10 @@ class Call extends Model
 
     public function scopeSearch($query, $term)
     {
-        return $query->where(function($q) use ($term) {
+        return $query->where(function ($q) use ($term) {
             $q->where('caller_number', 'like', "%{$term}%")
-              ->orWhere('agent_name', 'like', "%{$term}%")
-              ->orWhere('tracking_number', 'like', "%{$term}%");
+                ->orWhere('agent_name', 'like', "%{$term}%")
+                ->orWhere('tracking_number', 'like', "%{$term}%");
         });
     }
 
@@ -80,6 +86,7 @@ class Call extends Model
     {
         $minutes = floor($this->duration / 60);
         $seconds = $this->duration % 60;
+
         return sprintf('%d:%02d', $minutes, $seconds);
     }
 }

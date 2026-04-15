@@ -24,7 +24,7 @@ class CTMService
         $this->accountId = Setting::getValue('ctm_account_id', config('ctm.account_id'));
     }
 
-    protected function getAuthHeader(): string
+    public function getAuthHeader(): string
     {
         return 'Basic '.base64_encode($this->accessKey.':'.$this->secretKey);
     }
@@ -131,32 +131,77 @@ class CTMService
         return array_values($agents);
     }
 
+    public function getUserGroups(): ?array
+    {
+        try {
+            $allUsers = [];
+            $page = 1;
+            $perPage = 500;
+
+            do {
+                $response = Http::withHeaders($this->getHeaders())
+                    ->withoutVerifying()
+                    ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json", [
+                        'page' => $page,
+                        'limit' => $perPage,
+                    ]);
+
+                if (! $response->successful()) {
+                    return null;
+                }
+
+                $data = $response->json();
+                $users = $data['users'] ?? (is_array($data) ? $data : []);
+                $allUsers = array_merge($allUsers, $users);
+
+                $page++;
+                $hasMore = isset($data['next_page']) && $data['next_page']
+                    || isset($data['has_more']) && $data['has_more']
+                    || count($users) === $perPage;
+            } while ($hasMore);
+
+            $groups = [];
+            foreach ($allUsers as $user) {
+                $group = $user['user_group'] ?? $user['group'] ?? null;
+                if ($group && ! in_array($group, $groups)) {
+                    $groups[] = $group;
+                }
+            }
+
+            sort($groups);
+
+            return $groups;
+        } catch (\Exception $e) {
+            Log::error('CTM getUserGroups exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function getAgentById(string $agentId): ?array
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
                 ->withoutVerifying()
-                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json");
+                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users/{$agentId}.json");
 
             if (! $response->successful()) {
                 return null;
             }
 
-            $data = $response->json();
-            $users = $data['users'] ?? (is_array($data) ? $data : []);
+            $user = $response->json();
+            $firstName = $user['first_name'] ?? null;
+            $lastName = $user['last_name'] ?? null;
+            $fullName = trim("{$firstName} {$lastName}");
 
-            foreach ($users as $user) {
-                if (isset($user['id']) && (string) $user['id'] === (string) $agentId) {
-                    return [
-                        'ctm_agent_id' => $user['id'] ?? null,
-                        'ctm_agent_name' => $user['name'] ?? 'Unknown',
-                        'ctm_agent_email' => $user['email'] ?? null,
-                        'user_group' => $user['user_group'] ?? $user['group'] ?? null,
-                    ];
-                }
-            }
-
-            return null;
+            return [
+                'ctm_agent_id' => $user['id'] ?? null,
+                'ctm_agent_name' => $fullName ?: 'Unknown',
+                'ctm_agent_email' => $user['email'] ?? null,
+                'user_group' => $user['user_group'] ?? $user['group'] ?? null,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+            ];
         } catch (\Exception $e) {
             Log::error('CTM getAgentById exception', [
                 'agent_id' => $agentId,
@@ -170,16 +215,33 @@ class CTMService
     public function getCTMUsers(?string $filterName = null): ?array
     {
         try {
-            $response = Http::withHeaders($this->getHeaders())
-                ->withoutVerifying()
-                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json");
+            $allUsers = [];
+            $page = 1;
+            $perPage = 500;
 
-            if (! $response->successful()) {
-                return null;
-            }
+            do {
+                $response = Http::withHeaders($this->getHeaders())
+                    ->withoutVerifying()
+                    ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json", [
+                        'page' => $page,
+                        'limit' => $perPage,
+                    ]);
 
-            $data = $response->json();
-            $users = $data['users'] ?? (is_array($data) ? $data : []);
+                if (! $response->successful()) {
+                    return null;
+                }
+
+                $data = $response->json();
+                $users = $data['users'] ?? (is_array($data) ? $data : []);
+                $allUsers = array_merge($allUsers, $users);
+
+                $page++;
+                $hasMore = isset($data['next_page']) && $data['next_page']
+                    || isset($data['has_more']) && $data['has_more']
+                    || count($users) === $perPage;
+            } while ($hasMore);
+
+            $users = $allUsers;
 
             if ($filterName !== null) {
                 $needle = strtolower($filterName);
@@ -191,12 +253,20 @@ class CTMService
                 }));
             }
 
-            return array_map(fn ($u) => [
-                'ctm_agent_id' => $u['id'] ?? null,
-                'ctm_agent_name' => $u['name'] ?? 'Unknown',
-                'ctm_agent_email' => $u['email'] ?? null,
-                'user_group' => $u['user_group'] ?? $u['group'] ?? null,
-            ], $users);
+            return array_map(function ($u) {
+                $firstName = $u['first_name'] ?? null;
+                $lastName = $u['last_name'] ?? null;
+                $fullName = trim("{$firstName} {$lastName}");
+
+                return [
+                    'ctm_agent_id' => $u['id'] ?? null,
+                    'ctm_agent_name' => $fullName ?: 'Unknown',
+                    'ctm_agent_email' => $u['email'] ?? null,
+                    'user_group' => $u['user_group'] ?? $u['group'] ?? null,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                ];
+            }, $users);
         } catch (\Exception $e) {
             Log::error('CTM getCTMUsers exception', ['error' => $e->getMessage()]);
 
@@ -207,12 +277,45 @@ class CTMService
     public function getCall(string $callId): ?array
     {
         try {
+            $url = "https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}";
+
+            Log::debug('CTM getCall request', [
+                'call_id' => $callId,
+                'url' => $url,
+            ]);
+
             $response = Http::withHeaders($this->getHeaders())
                 ->withoutVerifying()
-                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}");
+                ->get($url);
 
             if ($response->successful()) {
-                return $response->json();
+                $data = $response->json();
+
+                // Extract all keys including nested objects
+                $allKeys = $this->extractAllKeys($data);
+                $potentialFields = $this->findPotentialRecordingFields($data);
+
+                // Get actual values of potential recording fields
+                $fieldValues = [];
+                foreach ($potentialFields as $field) {
+                    $value = $this->getNestedValue($data, $field);
+                    if ($value !== null) {
+                        $fieldValues[$field] = is_array($value) ? json_encode($value) : $value;
+                    }
+                }
+
+                Log::debug('CTM getCall response', [
+                    'call_id' => $callId,
+                    'has_data' => ! empty($data),
+                    'top_level_fields' => array_keys($data ?? []),
+                    'all_nested_keys' => $allKeys,
+                    'potential_recording_fields' => $potentialFields,
+                    'field_values' => $fieldValues,
+                    'audio_field' => $data['audio'] ?? 'NOT PRESENT',
+                    'is_s3_link_field' => $data['is_s3_link'] ?? 'NOT PRESENT',
+                ]);
+
+                return $data;
             }
 
             Log::error('CTM getCall error', [
@@ -232,20 +335,236 @@ class CTMService
         }
     }
 
+    protected function extractAllKeys(array $data, string $prefix = ''): array
+    {
+        $keys = [];
+        foreach ($data as $key => $value) {
+            $fullKey = $prefix ? "{$prefix}.{$key}" : $key;
+            $keys[] = $fullKey;
+            if (is_array($value)) {
+                $keys = array_merge($keys, $this->extractAllKeys($value, $fullKey));
+            }
+        }
+
+        return $keys;
+    }
+
+    protected function findPotentialRecordingFields(array $data): array
+    {
+        $potentialFields = [];
+        $recordingPatterns = ['recording', 'record', 'audio', 'media', 'url', 'link', 'path', 'file', 'src', 'href'];
+
+        $allKeys = $this->extractAllKeys($data);
+        foreach ($allKeys as $key) {
+            $keyLower = strtolower($key);
+            foreach ($recordingPatterns as $pattern) {
+                if (str_contains($keyLower, $pattern)) {
+                    $potentialFields[] = $key;
+                    break;
+                }
+            }
+        }
+
+        return $potentialFields;
+    }
+
+    protected function getNestedValue(array $data, string $key): mixed
+    {
+        $keys = explode('.', $key);
+        $value = $data;
+
+        foreach ($keys as $k) {
+            if (! is_array($value) || ! array_key_exists($k, $value)) {
+                return null;
+            }
+            $value = $value[$k];
+        }
+
+        return $value;
+    }
+
+    public function getCallRecording(string $callId): ?array
+    {
+        $recordingEndpoints = [
+            "/api/v1/accounts/{$this->accountId}/calls/{$callId}/recording",
+            "/api/v1/accounts/{$this->accountId}/calls/{$callId}/recordings",
+            "/api/v1/accounts/{$this->accountId}/calls/{$callId}/media",
+            "/api/v1/accounts/{$this->accountId}/recordings/call/{$callId}",
+        ];
+
+        Log::debug('CTM getCallRecording: Testing endpoints', [
+            'call_id' => $callId,
+            'endpoints' => $recordingEndpoints,
+        ]);
+
+        foreach ($recordingEndpoints as $endpoint) {
+            try {
+                $url = "https://{$this->host}{$endpoint}";
+
+                Log::debug('CTM getCallRecording: Testing endpoint', [
+                    'call_id' => $callId,
+                    'endpoint' => $endpoint,
+                    'url' => $url,
+                ]);
+
+                $response = Http::withHeaders($this->getHeaders())
+                    ->withoutVerifying()
+                    ->get($url);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    Log::debug('CTM getCallRecording: Endpoint returned data', [
+                        'call_id' => $callId,
+                        'endpoint' => $endpoint,
+                        'status' => $response->status(),
+                        'response_keys' => array_keys($data ?? []),
+                    ]);
+
+                    // Check if response contains recording data
+                    if ($this->hasRecordingData($data)) {
+                        $recordingUrl = $this->extractRecordingUrl($data);
+
+                        Log::info('CTM getCallRecording: Found recording', [
+                            'call_id' => $callId,
+                            'endpoint' => $endpoint,
+                            'recording_url' => $recordingUrl ? substr($recordingUrl, 0, 100).'...' : null,
+                        ]);
+
+                        return [
+                            'url' => $recordingUrl,
+                            'source_endpoint' => $endpoint,
+                            'raw_response' => $data,
+                        ];
+                    }
+                } else {
+                    Log::debug('CTM getCallRecording: Endpoint not found', [
+                        'call_id' => $callId,
+                        'endpoint' => $endpoint,
+                        'status' => $response->status(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('CTM getCallRecording: Endpoint error', [
+                    'call_id' => $callId,
+                    'endpoint' => $endpoint,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::debug('CTM getCallRecording: No recording found on any endpoint', [
+            'call_id' => $callId,
+        ]);
+
+        return null;
+    }
+
+    protected function hasRecordingData(?array $data): bool
+    {
+        if (! $data || empty($data)) {
+            return false;
+        }
+
+        $recordingKeys = ['recording_url', 'recording', 'url', 'audio_url', 'media_url', 'link', 'file_url', 'download_url', 'mp3', 'wav'];
+
+        foreach ($recordingKeys as $key) {
+            if (isset($data[$key]) && ! empty($data[$key])) {
+                return true;
+            }
+        }
+
+        // Check for URL-like values
+        foreach ($data as $value) {
+            if (is_string($value) && $this->isAudioUrl($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function extractRecordingUrl(array $data): ?string
+    {
+        $urlKeys = ['recording_url', 'url', 'audio_url', 'media_url', 'link', 'file_url', 'download_url'];
+
+        foreach ($urlKeys as $key) {
+            if (isset($data[$key]) && ! empty($data[$key])) {
+                $url = $data[$key];
+                if ($this->isAudioUrl($url)) {
+                    return $url;
+                }
+            }
+        }
+
+        // Look for URL-like values
+        foreach ($data as $value) {
+            if (is_string($value) && $this->isAudioUrl($value)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    protected function isAudioUrl(string $value): bool
+    {
+        $audioExtensions = ['.mp3', '.wav', '.aac', '.ogg', '.m4a', '.flac', '.wma'];
+        $valueLower = strtolower($value);
+
+        foreach ($audioExtensions as $ext) {
+            if (str_contains($valueLower, $ext)) {
+                return true;
+            }
+        }
+
+        // Also check for common audio hosting patterns
+        if (str_contains($valueLower, 'recording') ||
+            str_contains($valueLower, 'audio') ||
+            str_contains($valueLower, 'media')) {
+            return true;
+        }
+
+        // Check if it's a valid URL with audio content type pattern
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function getCallTranscript(string $callId): ?array
     {
         try {
+            $url = "https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}/transcript";
+
+            Log::debug('CTM getCallTranscript request', [
+                'call_id' => $callId,
+                'url' => $url,
+            ]);
+
             $response = Http::withHeaders($this->getHeaders())
                 ->withoutVerifying()
-                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls/{$callId}/transcript");
+                ->get($url);
 
             if ($response->successful()) {
-                return $response->json();
+                $data = $response->json();
+
+                Log::debug('CTM getCallTranscript response', [
+                    'call_id' => $callId,
+                    'has_data' => ! empty($data),
+                    'available_fields' => array_keys($data ?? []),
+                    'has_transcript' => isset($data['transcript']),
+                    'transcript_length' => isset($data['transcript']) ? strlen($data['transcript']) : 0,
+                ]);
+
+                return $data;
             }
 
             Log::error('CTM getCallTranscript error', [
                 'call_id' => $callId,
                 'status' => $response->status(),
+                'body' => $response->body(),
             ]);
 
             return null;

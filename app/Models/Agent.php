@@ -16,6 +16,7 @@ class Agent extends Model
         'ctm_agent_id',
         'ctm_agent_email',
         'ctm_agent_name',
+        'user_group',
     ];
 
     public function user(): BelongsTo

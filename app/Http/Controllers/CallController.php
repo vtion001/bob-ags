@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\DownloadRecordingJob;
+use App\Jobs\TranscribeCallJob;
 use App\Models\Agent;
 use App\Models\Call;
 use App\Models\QaLog;
@@ -191,40 +193,84 @@ class CallController extends Controller
             return redirect()->route('calls.index')->with('error', 'Call not found');
         }
 
-        // Fetch fresh CTM data to fill in any missing fields from old/incomplete syncs
-        if (! $call->call_datetime || ! $call->agent_name || ! $call->recording_url) {
-            $ctmData = $this->ctm->getCall($ctmCallId);
-            if ($ctmData) {
-                $updates = [];
-                if (! $call->call_datetime) {
-                    $rawDate = $ctmData['called_at'] ?? $ctmData['timestamp'] ?? null;
-                    if ($rawDate) {
-                        $updates['call_datetime'] = Carbon::parse($rawDate);
-                    }
+        // Always fetch fresh CTM data
+        $ctmData = $this->ctm->getCall($ctmCallId);
+        if ($ctmData) {
+            $updates = [];
+
+            // Update call datetime if missing or if CTM has newer data
+            $rawDate = $ctmData['called_at'] ?? $ctmData['timestamp'] ?? null;
+            if ($rawDate) {
+                $parsedDate = Carbon::parse($rawDate);
+                if (! $call->call_datetime || $parsedDate->gt($call->call_datetime)) {
+                    $updates['call_datetime'] = $parsedDate;
                 }
-                if (! $call->agent_name) {
-                    $agentName = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
-                    if (! $agentName && $call->agent_id) {
-                        $agent = $this->ctm->getAgentById($call->agent_id);
-                        $agentName = $agent['ctm_agent_name'] ?? null;
-                    }
+            }
+
+            // Update agent name if missing
+            if (! $call->agent_name) {
+                $agentName = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
+                if (! $agentName && $call->agent_id) {
+                    $agent = $this->ctm->getAgentById($call->agent_id);
+                    $agentName = $agent['ctm_agent_name'] ?? null;
+                }
+                if ($agentName) {
                     $updates['agent_name'] = $agentName;
                 }
-                if (! $call->recording_url && ! empty($ctmData['recording_url'])) {
-                    $updates['recording_url'] = $ctmData['recording_url'];
-                }
-                if (! empty($updates)) {
-                    $call->update($updates);
-                    $call->refresh();
-                }
+            }
+
+            // Update sid (session ID) - used for recording URLs
+            $sid = $ctmData['sid'] ?? null;
+            if ($sid && empty($call->ctm_sid)) {
+                $updates['ctm_sid'] = $sid;
+            }
+
+            // Update talk_time from CTM
+            $talkTime = $ctmData['talk_time'] ?? null;
+            if ($talkTime && empty($call->talk_time)) {
+                $updates['talk_time'] = $talkTime;
+            }
+
+            // Update recording URL - check multiple field names from getCall response
+            // Priority: recording_url > recording > recording_path > audio
+            $recordingUrl = $ctmData['recording_url']
+                ?? $ctmData['recording']
+                ?? $ctmData['recording_path']
+                ?? $ctmData['audio']  // CTM native recording URL
+                ?? null;
+
+            if ($recordingUrl && empty($call->recording_url)) {
+                $updates['recording_url'] = $recordingUrl;
+                $sourceField = isset($ctmData['recording_url']) ? 'recording_url'
+                    : (isset($ctmData['recording']) ? 'recording'
+                    : (isset($ctmData['recording_path']) ? 'recording_path' : 'audio'));
+                Log::info('CTM Recording URL found in getCall', [
+                    'call_id' => $ctmCallId,
+                    'recording_url' => substr($recordingUrl, 0, 100),
+                    'source_field' => $sourceField,
+                ]);
+            }
+
+            if (! empty($updates)) {
+                $call->update($updates);
+                $call->refresh();
             }
         }
 
+        // Try to get transcript from CTM if missing
         if (empty($call->transcript_text)) {
             $transcriptData = $this->ctm->getCallTranscript($ctmCallId);
             if ($transcriptData && ! empty($transcriptData['transcript'])) {
-                $call->update(['transcript_text' => $transcriptData['transcript']]);
+                $call->update([
+                    'transcript_text' => $transcriptData['transcript'],
+                    'status' => 'transcribed',
+                ]);
                 $call->refresh();
+
+                Log::info('CTM Transcript found', [
+                    'call_id' => $ctmCallId,
+                    'transcript_length' => strlen($transcriptData['transcript']),
+                ]);
             }
         }
 
@@ -267,10 +313,12 @@ class CallController extends Controller
 
                 $callData = [
                     'ctm_call_id' => $ctmCall['id'],
+                    'ctm_sid' => $ctmCall['sid'] ?? null,
                     'tracking_number' => $ctmCall['phone'] ?? null,
                     'caller_number' => $ctmCall['caller_number'] ?? null,
                     'direction' => in_array($ctmCall['direction'] ?? '', ['inbound', 'outbound']) ? $ctmCall['direction'] : 'inbound',
                     'duration' => $ctmCall['duration'] ?? 0,
+                    'talk_time' => $ctmCall['talk_time'] ?? null,
                     'call_datetime' => isset($ctmCall['called_at'])
                         ? Carbon::parse($ctmCall['called_at'])
                         : (isset($ctmCall['timestamp']) ? Carbon::parse($ctmCall['timestamp']) : null),
@@ -278,7 +326,11 @@ class CallController extends Controller
                     'agent_name' => $agentName,
                     'source' => $ctmCall['source'] ?? null,
                     'tracking_label' => $ctmCall['tracking_label'] ?? null,
-                    'recording_url' => $ctmCall['recording_url'] ?? null,
+                    'recording_url' => $ctmCall['recording_url']
+                        ?? $ctmCall['recording']
+                        ?? $ctmCall['recording_path']
+                        ?? $ctmCall['audio']  // CTM native recording URL
+                        ?? null,
                     'caller_city' => $ctmCall['city'] ?? null,
                     'caller_state' => $ctmCall['state'] ?? null,
                 ];
@@ -286,10 +338,20 @@ class CallController extends Controller
                 if ($existingCall) {
                     $existingCall->update($callData);
                     $skipped++;
+
+                    // Dispatch download job if recording URL is present
+                    if (! empty($callData['recording_url']) && empty($existingCall->local_recording_path)) {
+                        DownloadRecordingJob::dispatch($existingCall->id);
+                    }
                 } else {
                     $callData['status'] = 'pending';
-                    Call::create($callData);
+                    $newCall = Call::create($callData);
                     $synced++;
+
+                    // Dispatch download job if recording URL is present
+                    if (! empty($callData['recording_url'])) {
+                        DownloadRecordingJob::dispatch($newCall->id);
+                    }
                 }
             }
 
@@ -372,27 +434,20 @@ class CallController extends Controller
                 return redirect()->back()->with('error', 'No recording URL available for this call');
             }
 
-            $transcript = $this->assemblyAI->transcribe($call->recording_url);
-
-            if ($transcript && isset($transcript['id'])) {
-                $call->update([
-                    'transcript_id' => $transcript['id'],
-                    'status' => 'transcribed',
-                ]);
-
-                $polledTranscript = $this->assemblyAI->pollTranscript($transcript['id']);
-
-                if ($polledTranscript && $polledTranscript['status'] === 'completed') {
-                    $words = $this->assemblyAI->getWords($transcript['id']);
-
-                    $call->update([
-                        'transcript_text' => $polledTranscript['text'] ?? '',
-                        'transcript_json' => $words ?? null,
-                    ]);
-                }
+            if (! empty($call->transcript_text)) {
+                return redirect()->back()->with('info', 'Call already has a transcript');
             }
 
-            return redirect()->route('calls.show', $ctmCallId)->with('success', 'Transcription completed');
+            // Dispatch transcription job to queue
+            TranscribeCallJob::dispatch($call->id, $call->recording_url);
+
+            Log::info('TranscribeCallJob dispatched', [
+                'call_id' => $call->id,
+                'ctm_call_id' => $ctmCallId,
+            ]);
+
+            return redirect()->route('calls.show', $ctmCallId)
+                ->with('success', 'Transcription queued. The recording will be transcribed in the background.');
         } catch (\Exception $e) {
             Log::error('Transcription error', ['call_id' => $ctmCallId, 'error' => $e->getMessage()]);
 
