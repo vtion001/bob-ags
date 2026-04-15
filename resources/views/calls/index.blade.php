@@ -30,12 +30,21 @@
 
         <!-- Filters -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <form method="GET" action="{{ route('calls.search-ctm') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <form method="GET" action="{{ route('calls.search-ctm') }}" class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <!-- Row 1 -->
                 <div>
-                    <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search Phone</label>
-                    <input type="text" name="search" id="search" value="{{ request('search') }}" 
+                    <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="text" name="search" id="search" value="{{ request('search') }}"
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black"
                         placeholder="Search by phone...">
+                </div>
+                <div>
+                    <label for="direction" class="block text-sm font-medium text-gray-700 mb-1">Direction</label>
+                    <select name="direction" id="direction" class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                        <option value="">All</option>
+                        <option value="inbound"  {{ request('direction') === 'inbound'  ? 'selected' : '' }}>Inbound</option>
+                        <option value="outbound" {{ request('direction') === 'outbound' ? 'selected' : '' }}>Outbound</option>
+                    </select>
                 </div>
                 <div>
                     <label for="agent_id" class="block text-sm font-medium text-gray-700 mb-1">Agent</label>
@@ -50,16 +59,37 @@
                 </div>
                 <div>
                     <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                    <input type="date" name="date_from" id="date_from" 
+                    <input type="date" name="date_from" id="date_from"
                         value="{{ request('date_from', now()->subMonths(6)->format('Y-m-d')) }}"
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                 </div>
                 <div>
                     <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                    <input type="date" name="date_to" id="date_to" 
+                    <input type="date" name="date_to" id="date_to"
                         value="{{ request('date_to', now()->format('Y-m-d')) }}"
                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
                 </div>
+
+                <!-- Row 2 -->
+                <div>
+                    <label for="duration_min" class="block text-sm font-medium text-gray-700 mb-1">Duration (min sec)</label>
+                    <input type="number" name="duration_min" id="duration_min" value="{{ request('duration_min') }}"
+                        min="0" placeholder="e.g. 30"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                </div>
+                <div>
+                    <label for="score_min" class="block text-sm font-medium text-gray-700 mb-1">Score (min)</label>
+                    <input type="number" name="score_min" id="score_min" value="{{ request('score_min') }}"
+                        min="0" max="100" placeholder="e.g. 60"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                </div>
+                <div>
+                    <label for="disposition" class="block text-sm font-medium text-gray-700 mb-1">Disposition</label>
+                    <input type="text" name="disposition" id="disposition" value="{{ request('disposition') }}"
+                        placeholder="e.g. Sold, No Sale..."
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-navy-900 focus:ring-navy-900 text-black">
+                </div>
+                <div></div>
                 <div class="flex items-end gap-2">
                     <button type="submit" class="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg font-medium flex-1">
                         Search CTM

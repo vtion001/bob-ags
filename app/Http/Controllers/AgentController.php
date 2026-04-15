@@ -122,7 +122,46 @@ class AgentController extends Controller
     public function getAgents()
     {
         $agents = Agent::with('user')->get();
-        
+
         return response()->json($agents);
+    }
+
+    public function searchPhillies()
+    {
+        $keyword = 'phillies';
+
+        $agents = $this->ctm->getCTMUsers($keyword);
+
+        if (empty($agents)) {
+            $agents = $this->ctm->getAgentsBySource('Phillies');
+        }
+
+        if ($agents === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch agents from CTM',
+                'agents'  => [],
+            ], 502);
+        }
+
+        $ctmIds      = array_column($agents, 'ctm_agent_id');
+        $localAgents = Agent::whereIn('ctm_agent_id', $ctmIds)->get()->keyBy('ctm_agent_id');
+
+        $results = array_map(function ($agent) use ($localAgents) {
+            $local = $localAgents->get($agent['ctm_agent_id']);
+            return array_merge($agent, [
+                'local_agent_id' => $local?->id,
+                'linked_user_id' => $local?->user_id,
+                'is_local'       => $local !== null,
+                'is_linked'      => $local?->isLinked() ?? false,
+            ]);
+        }, $agents);
+
+        return response()->json([
+            'success' => true,
+            'count'   => count($results),
+            'keyword' => $keyword,
+            'agents'  => $results,
+        ]);
     }
 }

@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('agents')->name('agents.')->middleware('role:qa,admin')->group(function () {
         Route::get('/', [AgentController::class, 'index'])->name('index');
         Route::get('/sync', [AgentController::class, 'sync'])->name('sync');
+        Route::get('/search-phillies', [AgentController::class, 'searchPhillies'])->name('search-phillies');
         Route::post('/{id}/link', [AgentController::class, 'link'])->name('link');
         Route::post('/{id}/unlink', [AgentController::class, 'unlink'])->name('unlink');
         Route::get('/{id}', [AgentController::class, 'show'])->name('show');

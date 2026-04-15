@@ -30,7 +30,7 @@
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Date & Time</p>
-                            <p class="font-medium text-black">{{ isset($call['timestamp']) ? \Carbon\Carbon::parse($call['timestamp'])->format('M d, Y H:i') : 'N/A' }}</p>
+                            <p class="font-medium text-black">{{ $call->call_datetime ? $call->call_datetime->format('M d, Y g:i A') : 'N/A' }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Duration</p>
@@ -61,9 +61,9 @@
                 <!-- Transcript -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-bold text-black mb-4">Transcript</h2>
-                    @if(!empty($call['transcript']))
+                    @if(!empty($call->transcript_text))
                         <div class="prose max-w-none text-black">
-                            {!! nl2br(e($call['transcript'])) !!}
+                            {!! nl2br(e($call->transcript_text)) !!}
                         </div>
                     @else
                         <p class="text-gray-500">No transcript available.</p>

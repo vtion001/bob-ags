@@ -348,6 +348,11 @@
         </div>
         <div class="floating-header-right">
             <span class="floating-timer" id="floatingTimer">00:00:00</span>
+            <button class="floating-close-btn" id="floatingPipBtn" onclick="togglePipMode()" title="Pop out" style="display:none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-9 9M3 21l9-9"/>
+                </svg>
+            </button>
             <button class="floating-close-btn" onclick="toggleFloatingWindow()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -424,80 +429,71 @@
 (function() {
     const sessionId = '{{ $session->session_id }}';
     const startTime = new Date('{{ $session->started_at?->toIso8601String() ?? now()->toIso8601String() }}');
-    
+
     let eventSource = null;
     let isDragging = false;
     let dragOffset = { x: 0, y: 0 };
     let windowPosition = { x: 0, y: 0 };
-    
-    const floatingWindow = document.getElementById('floatingWindow');
-    const floatingHeader = document.getElementById('floatingHeader');
-    const floatingTimer = document.getElementById('floatingTimer');
-    const floatingTranscript = document.getElementById('floatingTranscript');
-    const floatingSuggestionText = document.getElementById('floatingSuggestionText');
-    const floatingZtpAlert = document.getElementById('floatingZtpAlert');
-    const floatingZtpAlertText = document.getElementById('floatingZtpAlertText');
-    const floatingChatInput = document.getElementById('floatingChatInput');
+    let _doc = document;
+    let isPipMode = false;
+
+    const popOutIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-9 9M3 21l9-9"/></svg>';
+    const returnIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 9L3 3m0 0h6m-6 0v6M15 15l6 6m0 0h-6m6 0v-6"/></svg>';
 
     function initPosition() {
         const saved = localStorage.getItem('floatingWindowPosition');
+        const win = document.getElementById('floatingWindow');
         if (saved) {
             const pos = JSON.parse(saved);
-            floatingWindow.style.right = 'auto';
-            floatingWindow.style.bottom = 'auto';
-            floatingWindow.style.left = pos.x + 'px';
-            floatingWindow.style.top = pos.y + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+            win.style.left = pos.x + 'px';
+            win.style.top = pos.y + 'px';
             windowPosition = pos;
         } else {
             const x = window.innerWidth - 400;
             const y = window.innerHeight - 500;
-            floatingWindow.style.left = x + 'px';
-            floatingWindow.style.top = y + 'px';
+            win.style.left = x + 'px';
+            win.style.top = y + 'px';
             windowPosition = { x, y };
         }
     }
 
     function savePosition() {
-        const rect = floatingWindow.getBoundingClientRect();
+        const rect = document.getElementById('floatingWindow').getBoundingClientRect();
         windowPosition = { x: rect.left, y: rect.top };
         localStorage.setItem('floatingWindowPosition', JSON.stringify(windowPosition));
     }
 
     function startDrag(e) {
+        if (isPipMode) return;
         isDragging = true;
-        const rect = floatingWindow.getBoundingClientRect();
-        dragOffset = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-        floatingWindow.classList.add('dragging');
+        const rect = document.getElementById('floatingWindow').getBoundingClientRect();
+        dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        document.getElementById('floatingWindow').classList.add('dragging');
         e.preventDefault();
     }
 
     function onDrag(e) {
-        if (!isDragging) return;
-        
-        let newX = e.clientX - dragOffset.x;
-        let newY = e.clientY - dragOffset.y;
-        
-        newX = Math.max(0, Math.min(newX, window.innerWidth - floatingWindow.offsetWidth));
-        newY = Math.max(0, Math.min(newY, window.innerHeight - floatingWindow.offsetHeight));
-        
-        floatingWindow.style.left = newX + 'px';
-        floatingWindow.style.top = newY + 'px';
-        floatingWindow.style.right = 'auto';
-        floatingWindow.style.bottom = 'auto';
+        if (!isDragging || isPipMode) return;
+        const win = document.getElementById('floatingWindow');
+        let newX = Math.max(0, Math.min(e.clientX - dragOffset.x, window.innerWidth - win.offsetWidth));
+        let newY = Math.max(0, Math.min(e.clientY - dragOffset.y, window.innerHeight - win.offsetHeight));
+        win.style.left = newX + 'px';
+        win.style.top = newY + 'px';
+        win.style.right = 'auto';
+        win.style.bottom = 'auto';
     }
 
     function stopDrag() {
         if (isDragging) {
             isDragging = false;
-            floatingWindow.classList.remove('dragging');
+            document.getElementById('floatingWindow').classList.remove('dragging');
             savePosition();
         }
     }
 
-    floatingHeader.addEventListener('mousedown', startDrag);
+    document.getElementById('floatingHeader').addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', onDrag);
     document.addEventListener('mouseup', stopDrag);
 
@@ -506,295 +502,349 @@
         const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
         const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
         const seconds = (elapsed % 60).toString().padStart(2, '0');
-        floatingTimer.textContent = `${hours}:${minutes}:${seconds}`;
+        _doc.getElementById('floatingTimer').textContent = `${hours}:${minutes}:${seconds}`;
     }
 
     function updateTranscript(transcripts) {
+        const el = _doc.getElementById('floatingTranscript');
         if (!transcripts || transcripts.length === 0) {
-            floatingTranscript.innerHTML = '<p class="floating-transcript-empty">Waiting for transcript...</p>';
+            el.innerHTML = '<p class="floating-transcript-empty">Waiting for transcript...</p>';
             return;
         }
-        
         let html = '';
         transcripts.forEach(t => {
             const speakerClass = t.speaker === 'agent' ? 'agent' : 'caller';
             const speakerName = t.speaker === 'agent' ? 'Agent' : 'Caller';
             html += `<div class="floating-transcript-line ${speakerClass}"><strong>${speakerName}:</strong> ${escapeHtml(t.text)}</div>`;
         });
-        floatingTranscript.innerHTML = html;
-        floatingTranscript.scrollTop = floatingTranscript.scrollHeight;
+        el.innerHTML = html;
+        el.scrollTop = el.scrollHeight;
     }
 
     function updateSuggestions(suggestions) {
+        const el = _doc.getElementById('floatingSuggestionText');
         if (suggestions && suggestions.what_to_say) {
-            if (!suggestions.what_to_say.startsWith('<span')) {
-                floatingSuggestionText.innerHTML = escapeHtml(suggestions.what_to_say);
-            } else {
-                floatingSuggestionText.innerHTML = suggestions.what_to_say;
-            }
-            floatingSuggestionText.classList.remove('floating-suggestion-loading');
+            el.innerHTML = suggestions.what_to_say.startsWith('<span')
+                ? suggestions.what_to_say
+                : escapeHtml(suggestions.what_to_say);
+            el.classList.remove('floating-suggestion-loading');
         } else {
-            floatingSuggestionText.textContent = 'No suggestions available';
-            floatingSuggestionText.classList.add('floating-suggestion-loading');
+            el.textContent = 'No suggestions available';
+            el.classList.add('floating-suggestion-loading');
         }
     }
 
     function updateZtpAlert(ztpAlerts) {
+        const alertEl = _doc.getElementById('floatingZtpAlert');
+        const alertTextEl = _doc.getElementById('floatingZtpAlertText');
         if (ztpAlerts && ztpAlerts.length > 0) {
-            const latest = ztpAlerts[ztpAlerts.length - 1];
-            floatingZtpAlertText.textContent = latest.message || 'Zero Tolerance Policy violation detected!';
-            floatingZtpAlert.style.display = 'block';
+            alertTextEl.textContent = ztpAlerts[ztpAlerts.length - 1].message || 'Zero Tolerance Policy violation detected!';
+            alertEl.style.display = 'block';
         } else {
-            floatingZtpAlert.style.display = 'none';
+            alertEl.style.display = 'none';
         }
     }
 
     function escapeHtml(text) {
-        const div = document.createElement('div');
+        const div = _doc.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
     function initEventSource() {
-        if (eventSource) {
-            eventSource.close();
-        }
-        
+        if (eventSource) eventSource.close();
+
         eventSource = new EventSource(`/live-monitoring/session/${sessionId}/stream`);
         let lastTranscriptLength = 0;
-        
+
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 updateTranscript(data.transcripts);
                 updateSuggestions(data.suggestions);
                 updateZtpAlert(data.ztp_alerts);
-                
+
                 const currentLength = (data.transcript || '').length;
                 if (currentLength > lastTranscriptLength && lastTranscriptLength > 0) {
-                    handleRefreshSuggestions();
+                    window.handleRefreshSuggestions();
                 }
                 lastTranscriptLength = currentLength;
             } catch (e) {
                 console.error('Error parsing SSE data:', e);
             }
         };
-        
+
         eventSource.addEventListener('ended', () => {
             window.location.href = '/live-monitoring';
         });
-        
-        eventSource.onerror = () => {
-            setTimeout(initEventSource, 5000);
-        };
+
+        eventSource.onerror = () => { setTimeout(initEventSource, 5000); };
+    }
+
+    async function enterPipMode() {
+        const pipWin = await window.documentPictureInPicture.requestWindow({
+            width: 400,
+            height: 580,
+            disallowReturnToOpener: false,
+        });
+
+        [...document.styleSheets].forEach(sheet => {
+            try {
+                const style = pipWin.document.createElement('style');
+                style.textContent = [...sheet.cssRules].map(r => r.cssText).join('\n');
+                pipWin.document.head.appendChild(style);
+            } catch (e) {}
+        });
+
+        // Dark background on html + body so no white shows at edges or bottom
+        pipWin.document.documentElement.style.cssText = 'margin:0;padding:0;overflow:hidden;height:100%;background:linear-gradient(180deg,rgba(10,22,40,0.92)0%,rgba(26,38,64,0.95)100%)';
+        pipWin.document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;height:100%;background:transparent';
+
+        const clone = document.getElementById('floatingWindow').cloneNode(true);
+        clone.style.position = 'static';
+        clone.style.width = '100%';
+        clone.style.height = '100%';
+        clone.style.inset = 'auto';
+        clone.style.borderRadius = '0';
+        clone.style.boxShadow = 'none';
+        clone.style.border = 'none';
+        clone.classList.add('visible');
+
+        // Let .floating-body fill all available vertical space instead of being capped at 350px
+        const bodyEl = clone.querySelector('.floating-body');
+        if (bodyEl) {
+            bodyEl.style.maxHeight = 'none';
+            bodyEl.style.flex = '1';
+        }
+
+        pipWin.document.body.appendChild(clone);
+
+        // Snap back to original size on any resize attempt
+        pipWin.addEventListener('resize', () => pipWin.resizeTo(400, 580));
+
+        _doc = pipWin.document;
+
+        _doc.getElementById('floatingHeader').style.cursor = 'default';
+
+        _doc.getElementById('floatingPipBtn').onclick = exitPipMode;
+        _doc.getElementById('floatingPipBtn').innerHTML = returnIconSvg;
+        _doc.getElementById('floatingPipBtn').title = 'Pop back in';
+        _doc.getElementById('floatingPipBtn').style.display = 'flex';
+
+        _doc.querySelectorAll('.floating-close-btn').forEach(btn => {
+            if (btn.id !== 'floatingPipBtn') btn.onclick = () => window.toggleFloatingWindow();
+        });
+
+        const actionBtns = _doc.querySelectorAll('.floating-action-btn');
+        if (actionBtns[0]) actionBtns[0].onclick = () => window.handleRefreshSuggestions();
+        if (actionBtns[1]) actionBtns[1].onclick = () => window.handleWhatToSay();
+
+        _doc.querySelector('.floating-send-btn').onclick = () => window.sendChatMessage();
+        _doc.getElementById('floatingChatInput').onkeypress = (e) => { if (e.key === 'Enter') window.sendChatMessage(); };
+
+        const refreshBtn = _doc.querySelector('.floating-refresh-btn');
+        if (refreshBtn) refreshBtn.onclick = () => window.handleRefreshSuggestions();
+
+        document.getElementById('floatingWindow').classList.remove('visible');
+        document.getElementById('floatingPipBtn').innerHTML = returnIconSvg;
+        document.getElementById('floatingPipBtn').title = 'Pop back in';
+
+        pipWin.addEventListener('pagehide', exitPipMode);
+
+        isPipMode = true;
+    }
+
+    function exitPipMode() {
+        if (!isPipMode) return;
+        isPipMode = false;
+        _doc = document;
+        document.getElementById('floatingWindow').classList.add('visible');
+        document.getElementById('floatingPipBtn').innerHTML = popOutIconSvg;
+        document.getElementById('floatingPipBtn').title = 'Pop out';
+        try { window.documentPictureInPicture.window?.close(); } catch (e) {}
     }
 
     window.toggleFloatingWindow = function() {
-        const isVisible = floatingWindow.classList.contains('visible');
+        const win = document.getElementById('floatingWindow');
+        const isVisible = win.classList.contains('visible');
         if (isVisible) {
-            floatingWindow.classList.remove('visible');
+            win.classList.remove('visible');
             sessionStorage.setItem('floatingWindowVisible', 'false');
         } else {
-            floatingWindow.classList.add('visible');
+            win.classList.add('visible');
             sessionStorage.setItem('floatingWindowVisible', 'true');
         }
     };
 
+    window.togglePipMode = function() {
+        if (isPipMode) exitPipMode();
+        else enterPipMode().catch(console.error);
+    };
+
     window.handleAssist = function() {
-        floatingChatInput.value = 'Can you help me with this call?';
-        sendChatMessage();
+        _doc.getElementById('floatingChatInput').value = 'Can you help me with this call?';
+        window.sendChatMessage();
     };
 
     window.handleWhatToSay = function() {
-        const suggestion = floatingSuggestionText.textContent;
-        if (suggestion && !floatingSuggestionText.classList.contains('floating-suggestion-loading')) {
-            floatingChatInput.value = suggestion;
-            sendChatMessage();
+        const suggestionEl = _doc.getElementById('floatingSuggestionText');
+        const suggestion = suggestionEl.textContent;
+        if (suggestion && !suggestionEl.classList.contains('floating-suggestion-loading')) {
+            _doc.getElementById('floatingChatInput').value = suggestion;
+            window.sendChatMessage();
         }
     };
 
     window.handleRefreshSuggestions = function() {
-        const startTime = performance.now();
+        const t0 = performance.now();
         let fullText = '';
-        
-        floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
-        
-        const refreshBtn = document.querySelector('.floating-refresh-btn');
+
+        _doc.getElementById('floatingSuggestionText').innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
+
+        const refreshBtn = _doc.querySelector('.floating-refresh-btn');
         if (refreshBtn) refreshBtn.classList.add('spinning');
-        
+
         fetch('/api/live-monitoring/suggestion-stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({
-                session_id: sessionId,
-                type: 'what_to_say'
-            })
+            body: JSON.stringify({ session_id: sessionId, type: 'what_to_say' })
         })
         .then(response => {
             if (!response.ok) throw new Error('Network error');
-            
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            
+
             function processStream() {
                 reader.read().then(({ done, value }) => {
                     if (done) {
-                        if (refreshBtn) refreshBtn.classList.remove('spinning');
-                        const latency = performance.now() - startTime;
-                        console.log(`Suggestion latency: ${latency.toFixed(0)}ms`);
+                        const rb = _doc.querySelector('.floating-refresh-btn');
+                        if (rb) rb.classList.remove('spinning');
+                        console.log(`Suggestion latency: ${(performance.now() - t0).toFixed(0)}ms`);
                         return;
                     }
-                    
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
-                    
+                    const lines = decoder.decode(value, { stream: true }).split('\n');
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-                            
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed.token) {
-                                    fullText += parsed.token;
-                                    floatingSuggestionText.textContent = fullText;
-                                }
-                            } catch (e) {}
-                        }
+                        if (!line.startsWith('data: ')) continue;
+                        const data = line.slice(6);
+                        if (data === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.token) {
+                                fullText += parsed.token;
+                                _doc.getElementById('floatingSuggestionText').textContent = fullText;
+                            }
+                        } catch (e) {}
                     }
-                    
                     processStream();
                 });
             }
-            
             processStream();
         })
         .catch(error => {
             console.error('Suggestion error:', error);
-            if (refreshBtn) refreshBtn.classList.remove('spinning');
-            floatingSuggestionText.textContent = 'Failed to load suggestions. Click refresh to try again.';
+            const rb = _doc.querySelector('.floating-refresh-btn');
+            if (rb) rb.classList.remove('spinning');
+            _doc.getElementById('floatingSuggestionText').textContent = 'Failed to load suggestions. Click refresh to try again.';
         });
     };
 
     window.sendChatMessage = function() {
-        const message = floatingChatInput.value.trim();
+        const chatInput = _doc.getElementById('floatingChatInput');
+        const message = chatInput.value.trim();
         if (!message) return;
-        
-        floatingChatInput.value = '';
-        floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
-        
-        const startTime = performance.now();
+
+        chatInput.value = '';
+        _doc.getElementById('floatingSuggestionText').innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
+
+        const t0 = performance.now();
         let fullText = '';
-        
+
         function animateWord(token) {
             fullText += token;
             const words = fullText.split(/(\s+)/);
-            let html = '';
-            
+            let html;
             if (words.length > 20) {
-                const recentWords = words.slice(-20);
-                html = escapeHtml(recentWords.slice(0, -1).join(''));
-                html += '<span class="floating-word">' + escapeHtml(recentWords[recentWords.length - 1]) + '</span>';
+                const recent = words.slice(-20);
+                html = escapeHtml(recent.slice(0, -1).join('')) +
+                    '<span class="floating-word">' + escapeHtml(recent[recent.length - 1]) + '</span>';
             } else {
                 html = escapeHtml(fullText);
             }
-            
-            floatingSuggestionText.innerHTML = html;
+            _doc.getElementById('floatingSuggestionText').innerHTML = html;
         }
-        
+
         function processStream(reader, decoder) {
             reader.read().then(({ done, value }) => {
                 if (done) return;
-                
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-                
+                const lines = decoder.decode(value, { stream: true }).split('\n');
                 for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        if (data === '[DONE]') {
-                            const latency = performance.now() - startTime;
-                            console.log(`Chat response latency: ${latency.toFixed(0)}ms`);
-                            return;
-                        }
-                        
-                        try {
-                            const parsed = JSON.parse(data);
-                            if (parsed.token) {
-                                animateWord(parsed.token);
-                            }
-                        } catch (e) {}
+                    if (!line.startsWith('data: ')) continue;
+                    const data = line.slice(6);
+                    if (data === '[DONE]') {
+                        console.log(`Chat response latency: ${(performance.now() - t0).toFixed(0)}ms`);
+                        return;
                     }
+                    try {
+                        const parsed = JSON.parse(data);
+                        if (parsed.token) animateWord(parsed.token);
+                    } catch (e) {}
                 }
-                
                 processStream(reader, decoder);
             });
         }
-        
+
         fetch('/api/live-monitoring/chat-stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({
-                session_id: sessionId,
-                question: message
-            })
+            body: JSON.stringify({ session_id: sessionId, question: message })
         })
         .then(response => {
             if (!response.ok) throw new Error('Network error');
-            
-            const latency = performance.now() - startTime;
-            console.log(`First response latency: ${latency.toFixed(0)}ms`);
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            processStream(reader, decoder);
+            console.log(`First response latency: ${(performance.now() - t0).toFixed(0)}ms`);
+            processStream(response.body.getReader(), new TextDecoder());
         })
         .catch(error => {
             console.error('Chat error:', error);
-            floatingSuggestionText.innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
-            
+            _doc.getElementById('floatingSuggestionText').innerHTML = '<div class="floating-typing-indicator"><span></span><span></span><span></span></div>';
             fetch('/api/live-monitoring/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    question: message
-                })
+                body: JSON.stringify({ session_id: sessionId, question: message })
             })
             .then(r => r.json())
             .then(data => {
-                if (data.success && data.answer) {
-                    floatingSuggestionText.textContent = data.answer;
-                } else {
-                    floatingSuggestionText.textContent = 'Sorry, I could not process that.';
-                }
+                _doc.getElementById('floatingSuggestionText').textContent =
+                    (data.success && data.answer) ? data.answer : 'Sorry, I could not process that.';
             })
             .catch(() => {
-                floatingSuggestionText.textContent = 'Sorry, I could not process that.';
+                _doc.getElementById('floatingSuggestionText').textContent = 'Sorry, I could not process that.';
             });
         });
     };
 
     function init() {
         initPosition();
-        
+
         const wasVisible = sessionStorage.getItem('floatingWindowVisible') !== 'false';
         if (wasVisible) {
-            floatingWindow.classList.add('visible');
+            document.getElementById('floatingWindow').classList.add('visible');
         }
-        
+
+        if ('documentPictureInPicture' in window) {
+            document.getElementById('floatingPipBtn').style.display = 'flex';
+        }
+
         setInterval(updateTimer, 1000);
         updateTimer();
-        
         initEventSource();
     }
 
