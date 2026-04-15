@@ -2,20 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Call;
 use App\Models\Agent;
+use App\Models\Call;
 use App\Models\QaLog;
-use App\Services\CTMService;
 use App\Services\AssemblyAIService;
+use App\Services\CTMService;
 use App\Services\QAAnalysisService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CallController extends Controller
 {
     protected CTMService $ctm;
+
     protected AssemblyAIService $assemblyAI;
+
     protected QAAnalysisService $qa;
 
     public function __construct(
@@ -49,7 +52,7 @@ class CallController extends Controller
         }
 
         if ($request->filled('date_to')) {
-            $query->where('call_datetime', '<=', $request->date_to . ' 23:59:59');
+            $query->where('call_datetime', '<=', $request->date_to.' 23:59:59');
         }
 
         if ($request->filled('duration_min')) {
@@ -57,11 +60,11 @@ class CallController extends Controller
         }
 
         if ($request->filled('score_min')) {
-            $query->whereHas('qaLog', fn($q) => $q->where('total_score', '>=', (int) $request->score_min));
+            $query->whereHas('qaLog', fn ($q) => $q->where('total_score', '>=', (int) $request->score_min));
         }
 
         if ($request->filled('disposition')) {
-            $query->whereHas('qaLog', fn($q) => $q->where('disposition', 'like', '%' . $request->disposition . '%'));
+            $query->whereHas('qaLog', fn ($q) => $q->where('disposition', 'like', '%'.$request->disposition.'%'));
         }
 
         if ($request->filled('status')) {
@@ -78,36 +81,37 @@ class CallController extends Controller
     public function searchCTM(Request $request)
     {
         try {
-            $dateFrom    = $request->input('date_from', now()->subMonths(6)->toDateString());
-            $dateTo      = $request->input('date_to', now()->toDateString());
-            $search      = $request->input('search', '');
-            $agentId     = $request->input('agent_id', '');
-            $direction   = $request->input('direction', '');
+            $dateFrom = $request->input('date_from', now()->subMonths(6)->toDateString());
+            $dateTo = $request->input('date_to', now()->toDateString());
+            $search = $request->input('search', '');
+            $agentId = $request->input('agent_id', '');
+            $direction = $request->input('direction', '');
             $durationMin = (int) $request->input('duration_min', 0);
-            $scoreMin    = $request->filled('score_min') ? (int) $request->input('score_min') : null;
+            $scoreMin = $request->filled('score_min') ? (int) $request->input('score_min') : null;
             $disposition = $request->input('disposition', '');
-            $limit       = min((int) $request->input('limit', 500), 1000);
+            $limit = min((int) $request->input('limit', 500), 1000);
 
-            $startDate = \Carbon\Carbon::parse($dateFrom)->startOfDay();
-            $endDate   = \Carbon\Carbon::parse($dateTo)->endOfDay();
+            $startDate = Carbon::parse($dateFrom)->startOfDay();
+            $endDate = Carbon::parse($dateTo)->endOfDay();
 
             $ctmCalls = $this->ctm->getCalls([
-                'limit'      => $limit,
+                'limit' => $limit,
                 'start_date' => $startDate->toIso8601String(),
-                'end_date'   => $endDate->toIso8601String(),
+                'end_date' => $endDate->toIso8601String(),
             ]);
 
-            if (!$ctmCalls || !isset($ctmCalls['calls'])) {
+            if (! $ctmCalls || ! isset($ctmCalls['calls'])) {
                 return redirect()->back()->with('error', 'No calls received from CTM');
             }
 
             $calls = collect($ctmCalls['calls']);
 
-            if (!empty($search)) {
+            if (! empty($search)) {
                 $searchNormalized = preg_replace('/[^0-9]/', '', $search);
                 $calls = $calls->filter(function ($call) use ($searchNormalized, $search) {
-                    $callerNumber   = preg_replace('/[^0-9]/', '', $call['caller_number'] ?? '');
+                    $callerNumber = preg_replace('/[^0-9]/', '', $call['caller_number'] ?? '');
                     $trackingNumber = preg_replace('/[^0-9]/', '', $call['tracking_number'] ?? '');
+
                     return stripos($callerNumber, $searchNormalized) !== false
                         || stripos($trackingNumber, $searchNormalized) !== false
                         || stripos($call['caller_number'] ?? '', $search) !== false
@@ -115,45 +119,46 @@ class CallController extends Controller
                 });
             }
 
-            if (!empty($agentId)) {
-                $calls = $calls->filter(fn($call) => ($call['agent_id'] ?? '') === $agentId);
+            if (! empty($agentId)) {
+                $calls = $calls->filter(fn ($call) => ($call['agent_id'] ?? '') === $agentId);
             }
 
-            if (!empty($direction)) {
-                $calls = $calls->filter(fn($call) => ($call['direction'] ?? '') === $direction);
+            if (! empty($direction)) {
+                $calls = $calls->filter(fn ($call) => ($call['direction'] ?? '') === $direction);
             }
 
             if ($durationMin > 0) {
-                $calls = $calls->filter(fn($call) => ($call['duration'] ?? 0) >= $durationMin);
+                $calls = $calls->filter(fn ($call) => ($call['duration'] ?? 0) >= $durationMin);
             }
 
-            $totalEntries  = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
+            $totalEntries = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
             $filteredCount = $calls->count();
 
             // Load local records for cross-reference (score/disposition live here)
             $localQuery = Call::query()->with('qaLog');
-            if (!empty($search)) {
+            if (! empty($search)) {
                 $localQuery->search($search);
             }
-            if (!empty($agentId)) {
+            if (! empty($agentId)) {
                 $localQuery->where('agent_id', $agentId);
             }
             $localCalls = $localQuery->get()->keyBy('ctm_call_id');
 
             // Score and disposition filters apply only to locally-synced calls
-            if ($scoreMin !== null || !empty($disposition)) {
+            if ($scoreMin !== null || ! empty($disposition)) {
                 $calls = $calls->filter(function ($call) use ($localCalls, $scoreMin, $disposition) {
                     $callId = $call['id'] ?? null;
-                    $local  = $localCalls->get($callId);
-                    if (!$local) {
+                    $local = $localCalls->get($callId);
+                    if (! $local) {
                         return false;
                     }
                     if ($scoreMin !== null && ($local->qaLog?->total_score ?? 0) < $scoreMin) {
                         return false;
                     }
-                    if (!empty($disposition) && stripos($local->qaLog?->disposition ?? '', $disposition) === false) {
+                    if (! empty($disposition) && stripos($local->qaLog?->disposition ?? '', $disposition) === false) {
                         return false;
                     }
+
                     return true;
                 });
                 $filteredCount = $calls->count();
@@ -162,18 +167,19 @@ class CallController extends Controller
             $agents = Agent::with('user')->get();
 
             return view('calls.index', [
-                'calls'         => $calls->take(20),
-                'localCalls'    => $localCalls,
-                'totalEntries'  => $totalEntries,
+                'calls' => $calls->take(20),
+                'localCalls' => $localCalls,
+                'totalEntries' => $totalEntries,
                 'filteredCount' => $filteredCount,
-                'searchFrom'    => 'ctm',
-                'dateFrom'      => $dateFrom,
-                'dateTo'        => $dateTo,
-                'agents'        => $agents,
+                'searchFrom' => 'ctm',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'agents' => $agents,
             ]);
         } catch (\Exception $e) {
             Log::error('CTM Search error', ['error' => $e->getMessage()]);
-            return redirect()->back()->with('error', 'Failed to search CTM: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Failed to search CTM: '.$e->getMessage());
         }
     }
 
@@ -181,28 +187,33 @@ class CallController extends Controller
     {
         $call = Call::with(['qaLog', 'user'])->where('ctm_call_id', $ctmCallId)->first();
 
-        if (!$call) {
+        if (! $call) {
             return redirect()->route('calls.index')->with('error', 'Call not found');
         }
 
         // Fetch fresh CTM data to fill in any missing fields from old/incomplete syncs
-        if (!$call->call_datetime || !$call->agent_name || !$call->recording_url) {
+        if (! $call->call_datetime || ! $call->agent_name || ! $call->recording_url) {
             $ctmData = $this->ctm->getCall($ctmCallId);
             if ($ctmData) {
                 $updates = [];
-                if (!$call->call_datetime) {
+                if (! $call->call_datetime) {
                     $rawDate = $ctmData['called_at'] ?? $ctmData['timestamp'] ?? null;
                     if ($rawDate) {
-                        $updates['call_datetime'] = \Carbon\Carbon::parse($rawDate);
+                        $updates['call_datetime'] = Carbon::parse($rawDate);
                     }
                 }
-                if (!$call->agent_name) {
-                    $updates['agent_name'] = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
+                if (! $call->agent_name) {
+                    $agentName = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
+                    if (! $agentName && $call->agent_id) {
+                        $agent = $this->ctm->getAgentById($call->agent_id);
+                        $agentName = $agent['ctm_agent_name'] ?? null;
+                    }
+                    $updates['agent_name'] = $agentName;
                 }
-                if (!$call->recording_url && !empty($ctmData['recording_url'])) {
+                if (! $call->recording_url && ! empty($ctmData['recording_url'])) {
                     $updates['recording_url'] = $ctmData['recording_url'];
                 }
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $call->update($updates);
                     $call->refresh();
                 }
@@ -211,7 +222,7 @@ class CallController extends Controller
 
         if (empty($call->transcript_text)) {
             $transcriptData = $this->ctm->getCallTranscript($ctmCallId);
-            if ($transcriptData && !empty($transcriptData['transcript'])) {
+            if ($transcriptData && ! empty($transcriptData['transcript'])) {
                 $call->update(['transcript_text' => $transcriptData['transcript']]);
                 $call->refresh();
             }
@@ -227,8 +238,8 @@ class CallController extends Controller
             $dateTo = $request->input('date_to', now()->toDateString());
             $limit = $request->input('limit', 100);
 
-            $startDate = \Carbon\Carbon::parse($dateFrom)->startOfDay();
-            $endDate = \Carbon\Carbon::parse($dateTo)->endOfDay();
+            $startDate = Carbon::parse($dateFrom)->startOfDay();
+            $endDate = Carbon::parse($dateTo)->endOfDay();
 
             $ctmCalls = $this->ctm->getCalls([
                 'limit' => $limit,
@@ -236,7 +247,7 @@ class CallController extends Controller
                 'end_date' => $endDate->toIso8601String(),
             ]);
 
-            if (!$ctmCalls || !isset($ctmCalls['calls'])) {
+            if (! $ctmCalls || ! isset($ctmCalls['calls'])) {
                 return redirect()->back()->with('error', 'No calls received from CTM');
             }
 
@@ -246,6 +257,14 @@ class CallController extends Controller
             foreach ($ctmCalls['calls'] as $ctmCall) {
                 $existingCall = Call::where('ctm_call_id', $ctmCall['id'])->first();
 
+                $agentId = $ctmCall['agent_id'] ?? ($ctmCall['agent']['id'] ?? null);
+                $agentName = $ctmCall['agent_name'] ?? ($ctmCall['agent']['name'] ?? null);
+
+                if (! $agentName && $agentId) {
+                    $agent = $this->ctm->getAgentById($agentId);
+                    $agentName = $agent['ctm_agent_name'] ?? null;
+                }
+
                 $callData = [
                     'ctm_call_id' => $ctmCall['id'],
                     'tracking_number' => $ctmCall['phone'] ?? null,
@@ -253,10 +272,10 @@ class CallController extends Controller
                     'direction' => in_array($ctmCall['direction'] ?? '', ['inbound', 'outbound']) ? $ctmCall['direction'] : 'inbound',
                     'duration' => $ctmCall['duration'] ?? 0,
                     'call_datetime' => isset($ctmCall['called_at'])
-                        ? \Carbon\Carbon::parse($ctmCall['called_at'])
-                        : (isset($ctmCall['timestamp']) ? \Carbon\Carbon::parse($ctmCall['timestamp']) : null),
-                    'agent_id' => $ctmCall['agent_id'] ?? ($ctmCall['agent']['id'] ?? null),
-                    'agent_name' => $ctmCall['agent_name'] ?? ($ctmCall['agent']['name'] ?? null),
+                        ? Carbon::parse($ctmCall['called_at'])
+                        : (isset($ctmCall['timestamp']) ? Carbon::parse($ctmCall['timestamp']) : null),
+                    'agent_id' => $agentId,
+                    'agent_name' => $agentName,
                     'source' => $ctmCall['source'] ?? null,
                     'tracking_label' => $ctmCall['tracking_label'] ?? null,
                     'recording_url' => $ctmCall['recording_url'] ?? null,
@@ -282,7 +301,8 @@ class CallController extends Controller
             return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             Log::error('CTM Sync error', ['error' => $e->getMessage()]);
-            return redirect()->back()->with('error', 'Failed to sync calls: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Failed to sync calls: '.$e->getMessage());
         }
     }
 
@@ -291,7 +311,7 @@ class CallController extends Controller
         try {
             $call = Call::where('ctm_call_id', $ctmCallId)->first();
 
-            if (!$call) {
+            if (! $call) {
                 return redirect()->back()->with('error', 'Call not found');
             }
 
@@ -299,14 +319,15 @@ class CallController extends Controller
 
             if (empty($call->transcript_text)) {
                 $transcriptData = $this->ctm->getCallTranscript($ctmCallId);
-                
-                if ($transcriptData && !empty($transcriptData['transcript'])) {
+
+                if ($transcriptData && ! empty($transcriptData['transcript'])) {
                     $call->update([
                         'transcript_text' => $transcriptData['transcript'],
                         'status' => 'transcribed',
                     ]);
                 } else {
                     $call->update(['status' => 'pending']);
+
                     return redirect()->back()->with('error', 'No transcript available for this call');
                 }
             }
@@ -330,10 +351,11 @@ class CallController extends Controller
                 ]
             );
 
-            return redirect()->route('calls.show', $ctmCallId)->with('success', 'Analysis completed. Score: ' . $analysis['score'] . '/100');
+            return redirect()->route('calls.show', $ctmCallId)->with('success', 'Analysis completed. Score: '.$analysis['score'].'/100');
         } catch (\Exception $e) {
             Log::error('Analysis error', ['call_id' => $ctmCallId, 'error' => $e->getMessage()]);
-            return redirect()->back()->with('error', 'Analysis failed: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Analysis failed: '.$e->getMessage());
         }
     }
 
@@ -342,7 +364,7 @@ class CallController extends Controller
         try {
             $call = Call::where('ctm_call_id', $ctmCallId)->first();
 
-            if (!$call) {
+            if (! $call) {
                 return redirect()->back()->with('error', 'Call not found');
             }
 
@@ -362,7 +384,7 @@ class CallController extends Controller
 
                 if ($polledTranscript && $polledTranscript['status'] === 'completed') {
                     $words = $this->assemblyAI->getWords($transcript['id']);
-                    
+
                     $call->update([
                         'transcript_text' => $polledTranscript['text'] ?? '',
                         'transcript_json' => $words ?? null,
@@ -373,7 +395,8 @@ class CallController extends Controller
             return redirect()->route('calls.show', $ctmCallId)->with('success', 'Transcription completed');
         } catch (\Exception $e) {
             Log::error('Transcription error', ['call_id' => $ctmCallId, 'error' => $e->getMessage()]);
-            return redirect()->back()->with('error', 'Transcription failed: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Transcription failed: '.$e->getMessage());
         }
     }
 }

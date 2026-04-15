@@ -2,16 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-use App\Models\Setting;
 
 class CTMService
 {
     protected string $host;
+
     protected string $accessKey;
+
     protected string $secretKey;
+
     protected string $accountId;
 
     public function __construct()
@@ -24,7 +26,7 @@ class CTMService
 
     protected function getAuthHeader(): string
     {
-        return 'Basic ' . base64_encode($this->accessKey . ':' . $this->secretKey);
+        return 'Basic '.base64_encode($this->accessKey.':'.$this->secretKey);
     }
 
     protected function getHeaders(): array
@@ -54,6 +56,7 @@ class CTMService
             return null;
         } catch (\Exception $e) {
             Log::error('CTM getAccounts exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -65,7 +68,7 @@ class CTMService
                 'limit' => 100,
             ];
 
-            if (!isset($params['start_date']) && !isset($params['end_date'])) {
+            if (! isset($params['start_date']) && ! isset($params['end_date'])) {
                 $defaultParams['hours'] = 24;
             }
 
@@ -85,6 +88,7 @@ class CTMService
             return null;
         } catch (\Exception $e) {
             Log::error('CTM getCalls exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -102,29 +106,65 @@ class CTMService
     {
         $data = $this->getCalls([
             'start_date' => now()->subDays($lookbackDays)->startOfDay()->toIso8601String(),
-            'end_date'   => now()->endOfDay()->toIso8601String(),
-            'source'     => $source,
-            'limit'      => 1000,
+            'end_date' => now()->endOfDay()->toIso8601String(),
+            'source' => $source,
+            'limit' => 1000,
         ]);
 
-        if (!$data || !isset($data['calls'])) {
+        if (! $data || ! isset($data['calls'])) {
             return null;
         }
 
         $agents = [];
         foreach ($data['calls'] as $call) {
             $agentId = $call['agent_id'] ?? null;
-            if ($agentId && !isset($agents[$agentId])) {
+            if ($agentId && ! isset($agents[$agentId])) {
                 $agents[$agentId] = [
-                    'ctm_agent_id'    => $agentId,
-                    'ctm_agent_name'  => $call['agent']['name'] ?? $call['agent_name'] ?? 'Unknown',
+                    'ctm_agent_id' => $agentId,
+                    'ctm_agent_name' => $call['agent']['name'] ?? $call['agent_name'] ?? 'Unknown',
                     'ctm_agent_email' => $call['agent']['email'] ?? null,
-                    'source'          => $source,
+                    'source' => $source,
                 ];
             }
         }
 
         return array_values($agents);
+    }
+
+    public function getAgentById(string $agentId): ?array
+    {
+        try {
+            $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
+                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json");
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $data = $response->json();
+            $users = $data['users'] ?? (is_array($data) ? $data : []);
+
+            foreach ($users as $user) {
+                if (isset($user['id']) && (string) $user['id'] === (string) $agentId) {
+                    return [
+                        'ctm_agent_id' => $user['id'] ?? null,
+                        'ctm_agent_name' => $user['name'] ?? 'Unknown',
+                        'ctm_agent_email' => $user['email'] ?? null,
+                        'user_group' => $user['user_group'] ?? $user['group'] ?? null,
+                    ];
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('CTM getAgentById exception', [
+                'agent_id' => $agentId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     public function getCTMUsers(?string $filterName = null): ?array
@@ -134,30 +174,32 @@ class CTMService
                 ->withoutVerifying()
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/users.json");
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return null;
             }
 
-            $data  = $response->json();
+            $data = $response->json();
             $users = $data['users'] ?? (is_array($data) ? $data : []);
 
             if ($filterName !== null) {
                 $needle = strtolower($filterName);
-                $users  = array_values(array_filter($users, function ($user) use ($needle) {
-                    $name  = strtolower($user['name']       ?? '');
+                $users = array_values(array_filter($users, function ($user) use ($needle) {
+                    $name = strtolower($user['name'] ?? '');
                     $group = strtolower($user['user_group'] ?? $user['group'] ?? '');
+
                     return str_contains($name, $needle) || str_contains($group, $needle);
                 }));
             }
 
-            return array_map(fn($u) => [
-                'ctm_agent_id'    => $u['id']        ?? null,
-                'ctm_agent_name'  => $u['name']       ?? 'Unknown',
-                'ctm_agent_email' => $u['email']      ?? null,
-                'user_group'      => $u['user_group'] ?? $u['group'] ?? null,
+            return array_map(fn ($u) => [
+                'ctm_agent_id' => $u['id'] ?? null,
+                'ctm_agent_name' => $u['name'] ?? 'Unknown',
+                'ctm_agent_email' => $u['email'] ?? null,
+                'user_group' => $u['user_group'] ?? $u['group'] ?? null,
             ], $users);
         } catch (\Exception $e) {
             Log::error('CTM getCTMUsers exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -185,6 +227,7 @@ class CTMService
                 'call_id' => $callId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -211,6 +254,7 @@ class CTMService
                 'call_id' => $callId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -233,6 +277,7 @@ class CTMService
             return null;
         } catch (\Exception $e) {
             Log::error('CTM getSources exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -255,6 +300,7 @@ class CTMService
             return null;
         } catch (\Exception $e) {
             Log::error('CTM getNumbers exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -283,6 +329,7 @@ class CTMService
             return null;
         } catch (\Exception $e) {
             Log::error('CTM searchNumbers exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }

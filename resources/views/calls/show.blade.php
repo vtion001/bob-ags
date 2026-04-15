@@ -3,6 +3,32 @@
 @section('title', 'Call Details')
 
 @section('content')
+{{-- Debug: Show call data in development --}}
+@if(config('app.debug'))
+<div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4">
+    <details>
+        <summary class="font-bold cursor-pointer">Debug: Call Data (Click to expand)</summary>
+        <pre class="mt-2 text-xs overflow-auto max-h-96">{{ print_r([
+            'id' => $call->id,
+            'ctm_call_id' => $call->ctm_call_id,
+            'caller_number' => $call->caller_number,
+            'direction' => $call->direction,
+            'duration' => $call->duration,
+            'agent_name' => $call->agent_name,
+            'agent_id' => $call->agent_id,
+            'call_datetime' => $call->call_datetime,
+            'source' => $call->source,
+            'tracking_label' => $call->tracking_label,
+            'recording_url' => $call->recording_url ? 'present' : 'null',
+            'transcript_text' => $call->transcript_text ? 'present (' . strlen($call->transcript_text) . ' chars)' : 'null',
+            'status' => $call->status,
+            'has_qaLog' => $call->qaLog ? 'Yes' : 'No',
+            'qaLog_score' => $call->qaLog?->total_score,
+        ], true) }}</pre>
+    </details>
+</div>
+@endif
+
 <div class="py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Back Link -->
@@ -22,11 +48,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-sm text-gray-500">Phone Number</p>
-                            <p class="font-medium text-black">{{ $call['caller_number'] ?? 'N/A' }}</p>
+                            <p class="font-medium text-black">{{ $call->caller_number ?? 'N/A' }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Direction</p>
-                            <p class="font-medium text-black">{{ ucfirst($call['direction'] ?? 'N/A') }}</p>
+                            <p class="font-medium text-black">{{ ucfirst($call->direction ?? 'N/A') }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Date & Time</p>
@@ -34,25 +60,25 @@
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Duration</p>
-                            <p class="font-medium text-black">{{ $call['duration'] ?? 0 }} seconds</p>
+                            <p class="font-medium text-black">{{ $call->duration ?? 0 }} seconds</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Agent</p>
-                            <p class="font-medium text-black">{{ $call['agent_name'] ?? 'N/A' }}</p>
+                            <p class="font-medium text-black">{{ $call->agent_name ?? 'N/A' }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Source</p>
-                            <p class="font-medium text-black">{{ $call['source'] ?? $call['tracking_label'] ?? 'N/A' }}</p>
+                            <p class="font-medium text-black">{{ $call->source ?? $call->tracking_label ?? 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recording Player -->
-                @if(!empty($call['recording_url']))
+                @if($call->recording_url)
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-bold text-black mb-4">Recording</h2>
                     <audio controls class="w-full">
-                        <source src="{{ $call['recording_url'] }}" type="audio/mpeg">
+                        <source src="{{ $call->recording_url }}" type="audio/mpeg">
                         Your browser does not support the audio element.
                     </audio>
                 </div>
@@ -76,17 +102,23 @@
                 <!-- Score Card -->
                 <div class="bg-navy-900 rounded-lg p-6 text-white">
                     <h2 class="text-lg font-semibold mb-4">QA Score</h2>
-                    @if(isset($call['score']))
+                    @if($call->qaLog && $call->qaLog->total_score !== null)
                         <div class="text-center">
-                            <p class="text-5xl font-bold">{{ $call['score'] }}</p>
+                            <p class="text-5xl font-bold">{{ $call->qaLog->total_score }}</p>
                             <p class="text-gray-300 mt-1">/ 100</p>
                             <p class="text-sm mt-2 
-                                @if(($call['sentiment'] ?? '') === 'positive') text-green-300
-                                @elseif(($call['sentiment'] ?? '') === 'neutral') text-yellow-300
+                                @if(($call->qaLog->sentiment ?? '') === 'positive') text-green-300
+                                @elseif(($call->qaLog->sentiment ?? '') === 'neutral') text-yellow-300
                                 @else text-red-300
                                 @endif">
-                                {{ ucfirst($call['sentiment'] ?? 'N/A') }}
+                                {{ ucfirst($call->qaLog->sentiment ?? 'N/A') }}
                             </p>
+                            @php
+                                $criteriaScores = $call->qaLog->criteria_scores ?? [];
+                                $passed = collect($criteriaScores)->filter(fn($c) => ($c['pass'] ?? false) || ($c['na'] ?? false))->count();
+                                $total = 25;
+                            @endphp
+                            <p class="text-xs text-gray-400 mt-2">{{ $passed }}/{{ $total }} criteria passed</p>
                         </div>
                     @else
                         <p class="text-center text-gray-300">Not analyzed</p>
@@ -94,19 +126,40 @@
                 </div>
 
                 <!-- Disposition Card -->
-                @if(!empty($call['disposition']))
+                @if($call->qaLog && !empty($call->qaLog->disposition))
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-black mb-2">Disposition</h2>
-                    <p class="text-black">{{ $call['disposition'] }}</p>
+                    @php
+                        $dispositionLabels = [
+                            'qualified' => 'Qualified Lead',
+                            'warm' => 'Warm Lead',
+                            'refer' => 'Refer',
+                            'do-not-refer' => 'Do Not Refer',
+                            'auto-fail' => 'Critical Violation',
+                            'unqualified' => 'Unqualified',
+                        ];
+                        $disposition = $call->qaLog->disposition;
+                        $dispositionLabel = $dispositionLabels[$disposition] ?? ucfirst(str_replace('-', ' ', $disposition));
+                    @endphp
+                    <p class="text-black font-medium">{{ $dispositionLabel }}</p>
+                    @if($disposition === 'auto-fail' || $disposition === 'unqualified')
+                        <p class="text-sm text-red-600 mt-1">Requires supervisor review</p>
+                    @endif
                 </div>
                 @endif
 
                 <!-- Tags -->
-                @if(!empty($call['tags']))
+                @if($call->qaLog && !empty($call->qaLog->notes))
+                @php
+                    $notes = $call->qaLog->notes;
+                    preg_match_all('/\b(excellent|good|needs-improvement|poor|unqualified-transfer|hipaa-risk|medical-advice-risk|ztp-violation)\b/i', $notes, $matches);
+                    $tags = array_unique($matches[0] ?? []);
+                @endphp
+                @if(!empty($tags))
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-black mb-3">Tags</h2>
                     <div class="flex flex-wrap gap-2">
-                        @foreach($call['tags'] as $tag)
+                        @foreach($tags as $tag)
                             <span class="px-3 py-1 bg-navy-900 text-white rounded-full text-xs font-medium">
                                 {{ $tag }}
                             </span>
@@ -114,26 +167,29 @@
                     </div>
                 </div>
                 @endif
+                @endif
 
                 <!-- Run Analysis Button -->
-                @if(empty($call['score']) && !empty($call['transcript']))
-                <form method="POST" action="{{ route('calls.analyze', $call['ctm_call_id'] ?? $call['id']) }}">
-                    @csrf
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium">
-                        Run QA Analysis
-                    </button>
-                </form>
-                @elseif(empty($call['score']) && empty($call['transcript']))
-                <p class="text-sm text-gray-500 text-center">Transcript needed for analysis</p>
+                @if(!$call->qaLog || $call->qaLog->total_score === null)
+                    @if($call->transcript_text)
+                    <form method="POST" action="{{ route('calls.analyze', $call->ctm_call_id ?? $call->id) }}">
+                        @csrf
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium">
+                            Run QA Analysis
+                        </button>
+                    </form>
+                    @else
+                    <p class="text-sm text-gray-500 text-center">Transcript needed for analysis</p>
+                    @endif
                 @endif
 
                 <!-- Rubric Breakdown -->
-                @if(!empty($call['rubric_breakdown']))
+                @if($call->qaLog && !empty($call->qaLog->rubric_breakdown))
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-black mb-4">Score Breakdown</h2>
                     <div class="space-y-3">
-                        @foreach($call['rubric_breakdown'] as $category => $data)
-                            @if(is_array($data) && isset($data['score']) && isset($data['max']))
+                        @foreach($call->qaLog->rubric_breakdown as $category => $data)
+                            @if(is_array($data) && isset($data['score']) && isset($data['max']) && $data['max'] > 0)
                             <div>
                                 <div class="flex justify-between text-sm mb-1">
                                     <span class="text-gray-700 capitalize">{{ str_replace('_', ' ', $category) }}</span>
@@ -151,9 +207,9 @@
                 @endif
 
                 <!-- ZTP Violations -->
-                @if(!empty($call['rubric_results']))
+                @if($call->qaLog && !empty($call->qaLog->criteria_scores))
                     @php
-                        $ztpViolations = collect($call['rubric_results'])->filter(function($r) {
+                        $ztpViolations = collect($call->qaLog->criteria_scores)->filter(function($r) {
                             return ($r['ztp'] ?? false) && !($r['pass'] ?? true);
                         });
                     @endphp
@@ -161,8 +217,8 @@
                     <div class="bg-red-600 rounded-lg p-6 text-white">
                         <h2 class="text-lg font-semibold mb-2">ZTP Violations</h2>
                         <ul class="text-sm space-y-1">
-                            @foreach($ztpViolations as $violation)
-                                <li>• {{ $violation['id'] }}: {{ $violation['criterion'] }}</li>
+                            @foreach($ztpViolations as $id => $violation)
+                                <li>• {{ $id }}: {{ $violation['criterion'] ?? '' }}</li>
                             @endforeach
                         </ul>
                     </div>
@@ -172,7 +228,7 @@
         </div>
 
         <!-- Detailed Rubric Results -->
-        @if(!empty($call['rubric_results']))
+        @if($call->qaLog && !empty($call->qaLog->criteria_scores))
         <div class="mt-6 bg-white rounded-lg shadow p-6">
             <h2 class="text-xl font-bold text-black mb-4">Rubric Criteria Results</h2>
             <div class="overflow-x-auto">
@@ -187,7 +243,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($call['rubric_results'] as $id => $result)
+                        @foreach($call->qaLog->criteria_scores as $id => $result)
                         <tr class="{{ ($result['ztp'] ?? false) && !($result['pass'] ?? true) ? 'bg-red-50' : '' }}">
                             <td class="px-4 py-3 text-sm font-medium text-black">{{ $id }}</td>
                             <td class="px-4 py-3 text-sm text-black">{{ $result['criterion'] ?? '' }}</td>

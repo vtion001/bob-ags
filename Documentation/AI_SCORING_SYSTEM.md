@@ -68,7 +68,7 @@ These criteria are:
 | 3.1 | Correctly assessed eligibility | "transferring you", "referring to", "qualified" | "wrong transfer", "wrong referral", "offers self-pay when prohibited" | Major | 5 |
 | 3.2 | Handled caller-specific needs correctly | "treatment", "samhsa", "al-anon", "aa", "na" | "wrong resource", "incorrect referral" | Major | 5 |
 | 3.3 | Used approved rebuttals/scripts | "we are a helpline", "to best help you", "approved rebuttal" | "deviates script", "pressures caller" | Major | 5 |
-| 3.4 | **Avoided unqualified transfers** | "does not transfer state insurance", "no transfer for self-pay", "correctly disqualified" | "transfers state insurance", "transfers self-pay", "unqualified transfer" | **ZTP** | **Auto-FAIL** |
+| 3.4 | **Avoided unqualified transfers** | "does not transfer state insurance", "no transfer for self-pay", "correctly disqualified", "not eligible" | "transfers state insurance", "transfers self-pay", "unqualified transfer" | **ZTP** | **10** |
 | 3.5 | Escalated qualified leads promptly | "transferring now", "let me get you", "transfer in" | "delays transfer", "fails to tag" | Major | 5 |
 | 3.6 | Provided correct referrals for non-qualifying | "988", "samhsa", "here are resources" | "wrong referral", "missing referral" | Major | 5 |
 | 3.7 | Maintained empathy and professionalism | "i understand", "thank you for", "that's understandable", "appreciate you" | "irritation", "no empathy", "dismissive" | Minor | 2 |
@@ -86,11 +86,11 @@ These criteria are:
 
 | ID | Criterion | Pass Phrases | Fail Phrases | Severity | Points |
 |----|-----------|--------------|--------------|----------|--------|
-| 5.1 | **Upheld patient confidentiality (HIPAA)** | "hipaa", "confidential", "protected health" | "shares info unauthorized", "hipaa breach", "unauthorized disclosure" | **ZTP** | **Auto-FAIL** |
-| 5.2 | **Avoided providing medical advice** | "i cannot advise", "not a medical", "consult a professional" | "detox advice", "withdrawal advice", "dosage", "treatment recommendation" | **ZTP** | **Auto-FAIL** |
-| 5.3 | Maintained response time | "responding promptly", "answered quickly" | "delayed response" | Minor | 2 |
-| 5.4 | Demonstrated soft skills | "active listening", "clear communication", "professional" | "interruptions", "unclear" | Minor | 2 |
-| 5.5 | Adhered to SOP/tools | "using ctm", "using zoho", "approved tools" | "unapproved script", "deviates from tools" | Major | 5 |
+| 5.1 | **Upheld patient confidentiality (HIPAA)** | "hipaa", "confidential", "protected health", "privacy" | "shares info unauthorized", "hipaa breach", "unauthorized disclosure" | **ZTP** | **10** |
+| 5.2 | **Avoided providing medical advice** | "i cannot advise", "not a medical", "consult a professional", "not a doctor" | "detox advice", "withdrawal advice", "dosage", "treatment recommendation" | **ZTP** | **10** |
+| 5.3 | Maintained response time | "responding promptly", "answered quickly", "right away" | "delayed response", "slow to respond" | Minor | 2 |
+| 5.4 | Demonstrated soft skills | "active listening", "clear communication", "professional", "patient" | "interruptions", "unclear", "rude" | Minor | 2 |
+| 5.5 | Adhered to SOP/tools | "using ctm", "using zoho", "approved tools", "following procedure" | "unapproved script", "deviates from tools" | Major | 5 |
 
 ---
 
@@ -112,9 +112,9 @@ These criteria are:
 |---------|------------|-------|
 | Opening | 14 | |
 | Probing | 19 | |
-| Qualification | 37 | |
+| Qualification | 37 | Includes ZTP criterion 3.4 (10 pts) |
 | Closing | 11 | Excludes 4.2, 4.3, 4.4 (always N/A) |
-| Compliance | 26 | |
+| Compliance | 26 | Includes ZTP criteria 5.1, 5.2 (20 pts total) |
 | **Total** | **107** | Excludes 3 N/A criteria |
 
 ### Formula
@@ -125,12 +125,12 @@ Score = (Earned Points / Maximum Points) × 100
 
 ### Special Rules
 
-1. **ZTP Violations**: If any ZTP criterion (3.4, 5.1, 5.2) fails, score is set to **0**
+1. **ZTP Violations**: If any ZTP criterion (3.4, 5.1, 5.2) fails, score is set to **0** (Auto-Fail)
 2. **Multiple ZTP Failures**: If 2+ ZTP criteria fail, score is set to **0**
 3. **Auto-Fail Triggers**: Any of these conditions set score to **0**:
-   - Criterion 3.4 (Unqualified Transfer) fails
-   - Criterion 5.1 (HIPAA Violation) fails
-   - Criterion 5.2 (Medical Advice) fails
+   - Criterion 3.4 (Unqualified Transfer) fails (10 points)
+   - Criterion 5.1 (HIPAA Violation) fails (10 points)
+   - Criterion 5.2 (Medical Advice) fails (10 points)
 4. **N/A Criteria**: Criteria 4.2, 4.3, 4.4 are always N/A and excluded from scoring
 
 ---

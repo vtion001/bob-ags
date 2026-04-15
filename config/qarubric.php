@@ -8,7 +8,7 @@ return [
         ],
         'probing' => [
             'name' => 'Probing',
-            'max_points' => 21,
+            'max_points' => 19,
         ],
         'qualification' => [
             'name' => 'Qualification',
@@ -20,7 +20,7 @@ return [
         ],
         'compliance' => [
             'name' => 'Compliance',
-            'max_points' => 21,
+            'max_points' => 26,
         ],
     ],
 
