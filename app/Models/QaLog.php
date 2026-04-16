@@ -21,6 +21,8 @@ class QaLog extends Model
         'rubric_breakdown',
         'ztp_violations',
         'notes',
+        'coaching_insights',
+        'recommendations',
     ];
 
     protected function casts(): array
@@ -56,9 +58,16 @@ class QaLog extends Model
 
     public function getScoreGradeAttribute(): string
     {
-        if ($this->total_score >= 85) return 'Excellent';
-        if ($this->total_score >= 70) return 'Good';
-        if ($this->total_score >= 50) return 'Needs Improvement';
+        if ($this->total_score >= 85) {
+            return 'Excellent';
+        }
+        if ($this->total_score >= 70) {
+            return 'Good';
+        }
+        if ($this->total_score >= 50) {
+            return 'Needs Improvement';
+        }
+
         return 'Poor';
     }
 }

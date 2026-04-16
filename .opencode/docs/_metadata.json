@@ -1,0 +1,390 @@
+{
+  "documents": {
+    "learn_microsoft_com_en-us_azure_app-service_reference-app-settings.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/reference-app-settings",
+      "title": "Environment Variables and App Settings Reference - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:17.309Z",
+      "expiresAt": "2026-04-17T20:57:17.309Z",
+      "size": 15241
+    },
+    "learn_microsoft_com_en-us_azure_app-service_configure-language-php.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/configure-language-php",
+      "title": "Configure a PHP App - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:22.089Z",
+      "expiresAt": "2026-04-17T20:57:22.089Z",
+      "size": 15212
+    },
+    "learn_microsoft_com_en-us_azure_app-service_deploy-run-package.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-run-package",
+      "title": "Run Your App from a ZIP Package - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:22.966Z",
+      "expiresAt": "2026-04-17T20:57:22.966Z",
+      "size": 12878
+    },
+    "learn_microsoft_com_en-us_azure_app-service_quickstart-php.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/quickstart-php",
+      "title": "Quickstart: Create a PHP Web App - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:22.979Z",
+      "expiresAt": "2026-04-17T20:57:22.979Z",
+      "size": 15217
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_single-database-cre.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart",
+      "title": "Create a Single Database - Azure SQL Database | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:27.352Z",
+      "expiresAt": "2026-04-17T20:57:27.352Z",
+      "size": 15236
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_connect-query-php.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/connect-query-php",
+      "title": "Use PHP to query - Azure SQL Database &amp; SQL Managed Instance | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:27.711Z",
+      "expiresAt": "2026-04-17T20:57:27.711Z",
+      "size": 8359
+    },
+    "learn_microsoft_com_en-us_azure_app-service_deploy-continuous-deployme.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-continuous-deployment",
+      "title": "Configure continuous deployment - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:28.498Z",
+      "expiresAt": "2026-04-17T20:57:28.498Z",
+      "size": 15230
+    },
+    "learn_microsoft_com_en-us_azure_app-service_tutorial-php-mysql-app.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/tutorial-php-mysql-app",
+      "title": "Tutorial: PHP app with MySQL and Redis - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:28.728Z",
+      "expiresAt": "2026-04-17T20:57:28.728Z",
+      "size": 15231
+    },
+    "learn_microsoft_com_en-us_entra_identity-platform_quickstart-register-.md": {
+      "url": "https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app",
+      "title": "How to register an app in Microsoft Entra ID - Microsoft identity platform | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:33.345Z",
+      "expiresAt": "2026-04-17T20:57:33.345Z",
+      "size": 7128
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_serverless-tier-ove.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/serverless-tier-overview",
+      "title": "Serverless compute tier - Azure SQL Database | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:33.425Z",
+      "expiresAt": "2026-04-17T20:57:33.425Z",
+      "size": 15226
+    },
+    "laravel_com_docs_12x_socialite.md": {
+      "url": "https://laravel.com/docs/12.x/socialite",
+      "title": "Laravel Socialite | Laravel 12.x - The clean stack for Artisans and agents",
+      "fetchedAt": "2026-04-16T20:57:34.118Z",
+      "expiresAt": "2026-04-17T20:57:34.118Z",
+      "size": 230
+    },
+    "learn_microsoft_com_en-us_azure_storage_blobs_storage-quickstart-blobs.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-php",
+      "title": "Azure Quickstart - Create a blob in object storage using PHP | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:34.192Z",
+      "expiresAt": "2026-04-17T20:57:34.192Z",
+      "size": 12402
+    },
+    "packagist_org_packages_league_flysystem-azure-blob-storage.md": {
+      "url": "https://packagist.org/packages/league/flysystem-azure-blob-storage",
+      "title": "league/flysystem-azure-blob-storage - Packagist.org",
+      "fetchedAt": "2026-04-16T20:57:34.299Z",
+      "expiresAt": "2026-04-17T20:57:34.299Z",
+      "size": 15198
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_purchasing-models.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/purchasing-models",
+      "title": "Purchasing Models - Azure SQL Database | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:34.833Z",
+      "expiresAt": "2026-04-17T20:57:34.833Z",
+      "size": 10870
+    },
+    "laravel_com_docs_11x_filesystem.md": {
+      "url": "https://laravel.com/docs/11.x/filesystem",
+      "title": "File Storage | Laravel 11.x - The clean stack for Artisans and agents",
+      "fetchedAt": "2026-04-16T20:57:36.014Z",
+      "expiresAt": "2026-04-17T20:57:36.014Z",
+      "size": 15190
+    },
+    "learn_microsoft_com_en-us_entra_identity-platform_how-to-add-redirect-.md": {
+      "url": "https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri",
+      "title": "How to add a redirect URI to your application - Microsoft identity platform | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:39.030Z",
+      "expiresAt": "2026-04-17T20:57:39.030Z",
+      "size": 5438
+    },
+    "learn_microsoft_com_en-us_azure_app-service_overview-authentication-au.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/overview-authentication-authorization",
+      "title": "Authentication and Authorization - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:39.466Z",
+      "expiresAt": "2026-04-17T20:57:39.466Z",
+      "size": 15240
+    },
+    "learn_microsoft_com_en-us_entra_identity-platform_how-to-add-credentia.md": {
+      "url": "https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-credentials",
+      "title": "Add and manage app credentials in Microsoft Entra ID - Microsoft identity platform | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:39.627Z",
+      "expiresAt": "2026-04-17T20:57:39.627Z",
+      "size": 8583
+    },
+    "socialiteproviders_com_Microsoft-Azure_.md": {
+      "url": "https://socialiteproviders.com/Microsoft-Azure/",
+      "title": "Socialite Providers",
+      "fetchedAt": "2026-04-16T20:57:40.153Z",
+      "expiresAt": "2026-04-17T20:57:40.153Z",
+      "size": 4162
+    },
+    "learn_microsoft_com_en-us_sql_connect_php_installation-tutorial-linux-.md": {
+      "url": "https://learn.microsoft.com/en-us/sql/connect/php/installation-tutorial-linux-mac",
+      "title": "Linux and macOS Installation for the Drivers for PHP - PHP drivers for SQL Server | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:40.294Z",
+      "expiresAt": "2026-04-17T20:57:40.294Z",
+      "size": 15261
+    },
+    "learn_microsoft_com_en-us_azure_app-service_deploy-github-actions.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-github-actions",
+      "title": "Deploy by Using GitHub Actions - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:42.173Z",
+      "expiresAt": "2026-04-17T20:57:42.173Z",
+      "size": 15222
+    },
+    "learn_microsoft_com_en-us_azure_app-service_configure-custom-container.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/configure-custom-container",
+      "title": "Configure a Custom Container - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:42.202Z",
+      "expiresAt": "2026-04-17T20:57:42.202Z",
+      "size": 15225
+    },
+    "learn_microsoft_com_en-us_azure_app-service_app-service-key-vault-refe.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/app-service-key-vault-references",
+      "title": "Use Key Vault References as App Settings - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:42.569Z",
+      "expiresAt": "2026-04-17T20:57:42.569Z",
+      "size": 15243
+    },
+    "packagist_org_packages_azure-oss_storage-blob-flysystem.md": {
+      "url": "https://packagist.org/packages/azure-oss/storage-blob-flysystem",
+      "title": "azure-oss/storage-blob-flysystem - Packagist.org",
+      "fetchedAt": "2026-04-16T20:57:43.454Z",
+      "expiresAt": "2026-04-17T20:57:43.454Z",
+      "size": 15192
+    },
+    "laravel_com_docs_11x_deployment.md": {
+      "url": "https://laravel.com/docs/11.x/deployment",
+      "title": "Deployment | Laravel 11.x - The clean stack for Artisans and agents",
+      "fetchedAt": "2026-04-16T20:57:43.538Z",
+      "expiresAt": "2026-04-17T20:57:43.538Z",
+      "size": 480
+    },
+    "learn_microsoft_com_en-us_azure_storage_blobs_storage-blobs-introducti.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction",
+      "title": "Introduction to Blob (object) Storage - Azure Storage | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:43.892Z",
+      "expiresAt": "2026-04-17T20:57:43.892Z",
+      "size": 12028
+    },
+    "learn_microsoft_com_en-us_azure_storage_common_storage-account-create.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/storage/common/storage-account-create",
+      "title": "Create an Azure storage account - Azure Storage | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:44.002Z",
+      "expiresAt": "2026-04-17T20:57:44.002Z",
+      "size": 15223
+    },
+    "learn_microsoft_com_en-us_azure_app-service_configure-authentication-p.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-provider-aad",
+      "title": "Configure Microsoft Entra Authentication - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:46.307Z",
+      "expiresAt": "2026-04-17T20:57:46.307Z",
+      "size": 15248
+    },
+    "learn_microsoft_com_en-us_azure_app-service_configure-authentication-f.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-file-based",
+      "title": "File-Based Configuration of AuthN/AuthZ - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:46.713Z",
+      "expiresAt": "2026-04-17T20:57:46.713Z",
+      "size": 11333
+    },
+    "learn_microsoft_com_en-us_azure_app-service_overview-managed-identity.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity",
+      "title": "Managed Identities - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:47.481Z",
+      "expiresAt": "2026-04-17T20:57:47.481Z",
+      "size": 15214
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_elastic-pool-overvi.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/elastic-pool-overview",
+      "title": "Manage Multiple Databases with Elastic Pools - Azure SQL Database | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:50.448Z",
+      "expiresAt": "2026-04-17T20:57:50.448Z",
+      "size": 15244
+    },
+    "laravel_com_docs_11x_database.md": {
+      "url": "https://laravel.com/docs/11.x/database",
+      "title": "Database: Getting Started | Laravel 11.x - The clean stack for Artisans and agents",
+      "fetchedAt": "2026-04-16T20:57:51.723Z",
+      "expiresAt": "2026-04-17T20:57:51.723Z",
+      "size": 561
+    },
+    "learn_microsoft_com_en-us_azure_key-vault_general_rbac-guide.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide",
+      "title": "Grant permission to applications to access an Azure key vault using Azure RBAC | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:54.275Z",
+      "expiresAt": "2026-04-17T20:57:54.275Z",
+      "size": 15245
+    },
+    "learn_microsoft_com_en-us_azure_app-service_configure-authentication-u.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities",
+      "title": "Work with User Identities in AuthN/AuthZ - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:54.463Z",
+      "expiresAt": "2026-04-17T20:57:54.463Z",
+      "size": 10298
+    },
+    "packagist_org_packages_azure-oss_storage-blob-laravel.md": {
+      "url": "https://packagist.org/packages/azure-oss/storage-blob-laravel",
+      "title": "azure-oss/storage-blob-laravel - Packagist.org",
+      "fetchedAt": "2026-04-16T20:57:54.571Z",
+      "expiresAt": "2026-04-17T20:57:54.571Z",
+      "size": 15188
+    },
+    "learn_microsoft_com_en-us_azure_key-vault_secrets_quick-create-cli.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/key-vault/secrets/quick-create-cli",
+      "title": "Quickstart - Set and retrieve a secret from Azure Key Vault | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:54.618Z",
+      "expiresAt": "2026-04-17T20:57:54.618Z",
+      "size": 8725
+    },
+    "learn_microsoft_com_en-us_azure_app-service_deploy-staging-slots.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-staging-slots",
+      "title": "Set Up Staging Environments - Azure App Service | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:54.754Z",
+      "expiresAt": "2026-04-17T20:57:54.754Z",
+      "size": 15218
+    },
+    "learn_microsoft_com_en-us_azure_storage_common_storage-sas-overview.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/storage/common/storage-sas-overview",
+      "title": "Grant limited access to data with shared access signatures (SAS) - Azure Storage | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:54.944Z",
+      "expiresAt": "2026-04-17T20:57:54.944Z",
+      "size": 15254
+    },
+    "learn_microsoft_com_en-us_azure_developer_github_connect-from-azure.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure",
+      "title": "Authenticate to Azure from GitHub Actions workflows | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:55.148Z",
+      "expiresAt": "2026-04-17T20:57:55.148Z",
+      "size": 4298
+    },
+    "learn_microsoft_com_en-us_azure_cdn_cdn-overview.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/cdn/cdn-overview",
+      "title": "What is a content delivery network? - Azure | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:55.243Z",
+      "expiresAt": "2026-04-17T20:57:55.243Z",
+      "size": 8712
+    },
+    "learn_microsoft_com_en-us_azure_devops_pipelines_ecosystems_php.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/devops/pipelines/ecosystems/php",
+      "title": "Build, test, and deploy PHP apps - Azure Pipelines | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:57:55.286Z",
+      "expiresAt": "2026-04-17T20:57:55.286Z",
+      "size": 15220
+    },
+    "packagist_org_packages_search.md": {
+      "url": "https://packagist.org/packages/search?q=azure+key+vault+laravel",
+      "title": "Packagist.org",
+      "fetchedAt": "2026-04-16T20:58:00.779Z",
+      "expiresAt": "2026-04-17T20:58:00.779Z",
+      "size": 7008
+    },
+    "azure-oss_github_io_category_storage-blob-laravel.md": {
+      "url": "https://azure-oss.github.io/category/storage-blob-laravel",
+      "title": "Storage Blob (Laravel) | Azure OSS for PHP",
+      "fetchedAt": "2026-04-16T20:58:02.937Z",
+      "expiresAt": "2026-04-17T20:58:02.937Z",
+      "size": 268
+    },
+    "learn_microsoft_com_en-us_azure_storage_blobs_access-tiers-overview.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/storage/blobs/access-tiers-overview",
+      "title": "Access tiers for blob data - Azure Storage | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:58:02.962Z",
+      "expiresAt": "2026-04-17T20:58:02.962Z",
+      "size": 15216
+    },
+    "packagist_org_packages_microsoft_azure-identity.md": {
+      "url": "https://packagist.org/packages/microsoft/azure-identity",
+      "title": "Packagist.org",
+      "fetchedAt": "2026-04-16T20:58:05.882Z",
+      "expiresAt": "2026-04-17T20:58:05.882Z",
+      "size": 4988
+    },
+    "learn_microsoft_com_en-us_azure_azure-sql_database_firewall-configure.md": {
+      "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/firewall-configure",
+      "title": "IP Firewall Rules - Azure SQL Database and Azure Synapse Analytics | Microsoft Learn",
+      "fetchedAt": "2026-04-16T20:58:05.929Z",
+      "expiresAt": "2026-04-17T20:58:05.929Z",
+      "size": 15242
+    },
+    "azure_microsoft_com_en-us_pricing_details_app-service_.md": {
+      "url": "https://azure.microsoft.com/en-us/pricing/details/app-service/",
+      "title": "Pricing – App Service for Linux | Microsoft Azure",
+      "fetchedAt": "2026-04-16T20:58:08.049Z",
+      "expiresAt": "2026-04-17T20:58:08.049Z",
+      "size": 15192
+    },
+    "github_com_Azure-OSS_azure-storage-php-adapter-laravel.md": {
+      "url": "https://github.com/Azure-OSS/azure-storage-php-adapter-laravel",
+      "title": "GitHub - Azure-OSS/azure-storage-php-adapter-laravel: [READ ONLY] Subtree split of the AzureOss\\Storage\\BlobLaravel component · GitHub",
+      "fetchedAt": "2026-04-16T20:58:13.607Z",
+      "expiresAt": "2026-04-17T20:58:13.607Z",
+      "size": 3481
+    },
+    "packagist_org_packages_microsoft_azure-sdk-for-php.md": {
+      "url": "https://packagist.org/packages/microsoft/azure-sdk-for-php",
+      "title": "Packagist.org",
+      "fetchedAt": "2026-04-16T20:58:13.661Z",
+      "expiresAt": "2026-04-17T20:58:13.661Z",
+      "size": 4991
+    },
+    "azure-oss_github_io.md": {
+      "url": "https://azure-oss.github.io/",
+      "title": "Introduction | Azure OSS for PHP",
+      "fetchedAt": "2026-04-16T20:58:22.200Z",
+      "expiresAt": "2026-04-17T20:58:22.200Z",
+      "size": 1897
+    },
+    "azure_microsoft_com_en-us_pricing_details_key-vault_.md": {
+      "url": "https://azure.microsoft.com/en-us/pricing/details/key-vault/",
+      "title": "Pricing - Key Vault | Microsoft Azure",
+      "fetchedAt": "2026-04-16T20:58:29.518Z",
+      "expiresAt": "2026-04-17T20:58:29.518Z",
+      "size": 15178
+    },
+    "azure_microsoft_com_en-us_pricing_details_storage_blobs_.md": {
+      "url": "https://azure.microsoft.com/en-us/pricing/details/storage/blobs/",
+      "title": "Azure Blob Storage pricing | Microsoft Azure",
+      "fetchedAt": "2026-04-16T20:58:33.195Z",
+      "expiresAt": "2026-04-17T20:58:33.195Z",
+      "size": 15189
+    },
+    "github_com_Azure-OSS_azure-storage-php-monorepo.md": {
+      "url": "https://github.com/Azure-OSS/azure-storage-php-monorepo",
+      "title": "GitHub - Azure-OSS/azure-storage-php-monorepo: Azure Storage PHP SDK · GitHub",
+      "fetchedAt": "2026-04-16T20:58:35.162Z",
+      "expiresAt": "2026-04-17T20:58:35.162Z",
+      "size": 6097
+    },
+    "azure_microsoft_com_en-us_pricing_details_monitor_.md": {
+      "url": "https://azure.microsoft.com/en-us/pricing/details/monitor/",
+      "title": "Pricing - Azure Monitor | Microsoft Azure",
+      "fetchedAt": "2026-04-16T20:59:04.587Z",
+      "expiresAt": "2026-04-17T20:59:04.587Z",
+      "size": 15180
+    },
+    "azure_microsoft_com_en-us_pricing_details_sql-database_single_.md": {
+      "url": "https://azure.microsoft.com/en-us/pricing/details/sql-database/single/",
+      "title": "Pricing - Azure SQL Database Single Database | Microsoft Azure",
+      "fetchedAt": "2026-04-16T20:59:14.597Z",
+      "expiresAt": "2026-04-17T20:59:14.597Z",
+      "size": 15213
+    }
+  },
+  "lastUpdated": "2026-04-16T20:59:14.599Z"
+}

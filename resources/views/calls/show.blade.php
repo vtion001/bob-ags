@@ -302,6 +302,24 @@
             </div>
         </div>
         @endif
+
+        <!-- Coaching Insights -->
+        @if($call->qaLog && !empty($call->qaLog->coaching_insights))
+        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-black mb-3">Coaching Insights</h2>
+            <p class="text-gray-700 leading-relaxed">{{ $call->qaLog->coaching_insights }}</p>
+        </div>
+        @endif
+
+        <!-- Recommended Training Focus -->
+        @if($call->qaLog && !empty($call->qaLog->recommendations))
+        <div class="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-black mb-3">Recommended Training Focus</h2>
+            <div class="text-gray-700 leading-relaxed space-y-2">
+                {!! nl2br(e($call->qaLog->recommendations)) !!}
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 

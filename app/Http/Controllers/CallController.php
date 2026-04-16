@@ -506,6 +506,8 @@ class CallController extends Controller
 
             $call->update(['status' => 'analyzed']);
 
+            $coaching = $this->qa->generateCoachingInsights($analysis, $call->transcript_text);
+
             QaLog::updateOrCreate(
                 ['call_id' => $call->id],
                 [
@@ -518,6 +520,8 @@ class CallController extends Controller
                     'rubric_breakdown' => $analysis['rubric_breakdown'],
                     'ztp_violations' => $analysis['ztp_violations'],
                     'notes' => $analysis['summary'],
+                    'coaching_insights' => $coaching['coaching_insights'] ?? null,
+                    'recommendations' => $coaching['recommendations'] ?? null,
                 ]
             );
 

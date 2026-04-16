@@ -377,4 +377,111 @@ class QAAnalysisService
 
         return false;
     }
+
+    public function generateCoachingInsights(array $analysis, string $transcript): ?array
+    {
+        $failedCriteria = [];
+        $ztpViolations = [];
+
+        foreach ($analysis['rubric_results'] ?? [] as $id => $result) {
+            if (! ($result['na'] ?? false)) {
+                if (! ($result['pass'] ?? false)) {
+                    if ($result['ztp'] ?? false) {
+                        $ztpViolations[$id] = $result;
+                    } else {
+                        $failedCriteria[$id] = $result;
+                    }
+                }
+            }
+        }
+
+        if (empty($failedCriteria) && empty($ztpViolations)) {
+            return [
+                'coaching_insights' => 'Excellent performance — agent met all applicable quality standards. Continue reinforcing current best practices.',
+                'recommendations' => 'No critical gaps identified. Focus on maintaining consistency and exploring advanced scenarios during coaching sessions.',
+            ];
+        }
+
+        $breakdown = $analysis['rubric_breakdown'] ?? [];
+        $score = $analysis['score'] ?? 0;
+        $disposition = $analysis['disposition'] ?? 'unknown';
+
+        $criteriaList = '';
+        foreach (array_merge($ztpViolations, $failedCriteria) as $id => $result) {
+            $severity = $result['severity'] ?? 'minor';
+            $points = $result['points'] ?? 0;
+            $criteriaList .= "- **Criterion {$id}:** {$result['criterion']} ({$severity}, {$points} pts) — {$result['details']}\n";
+        }
+
+        $systemPrompt = <<<'EOT'
+You are a senior QA supervisor providing coaching feedback for a substance abuse helpline agent.
+Write in professional supervisor voice — direct, constructive, actionable.
+EOT;
+
+        $userPrompt = <<<EOT
+Call Quality Analysis — Coaching Report
+
+Overall Score: {$score}/100
+Disposition: {$disposition}
+
+Category Breakdown:
+EOT;
+
+        foreach ($breakdown as $category => $data) {
+            if (($data['max'] ?? 0) > 0) {
+                $userPrompt .= '- '.ucfirst($category).": {$data['score']}/{$data['max']}\n";
+            }
+        }
+
+        $userPrompt .= <<<EOT
+
+Failed & ZTP Criteria:
+{$criteriaList}
+
+Return your response in exactly this format (two sections, nothing else):
+
+COACHING_INSIGHTS:
+[2-3 sentences of supervisor-level feedback addressing overall performance, key strengths, and the primary areas requiring attention. Be specific about which categories drove the score.]
+
+RECOMMENDATIONS:
+[Numbered list of 3-6 specific, actionable training recommendations. Each recommendation should reference the failed criterion ID and include a concrete coaching tip. ZTP violations must be addressed with highest priority.]
+EOT;
+
+        $result = $this->openRouter->chat([
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt],
+        ]);
+
+        if (! $result) {
+            Log::warning('QAAnalysisService: Failed to generate coaching insights via AI');
+
+            return null;
+        }
+
+        $content = $result['choices'][0]['message']['content'] ?? '';
+
+        $coachingInsights = null;
+        $recommendations = null;
+
+        if (preg_match('/COACHING_INSIGHTS:\s*\n(.*?)(?=RECOMMENDATIONS:|$)/si', $content, $insightsMatch)) {
+            $coachingInsights = trim($insightsMatch[1]);
+        }
+
+        if (preg_match('/RECOMMENDATIONS:\s*\n(.*?)$/si', $content, $recMatch)) {
+            $recommendations = trim($recMatch[1]);
+        }
+
+        if (! $coachingInsights && ! $recommendations) {
+            Log::warning('QAAnalysisService: Could not parse coaching insights from AI response', [
+                'content' => substr($content, 0, 500),
+            ]);
+
+            return null;
+        }
+
+        return [
+            'coaching_insights' => $coachingInsights,
+            'recommendations' => $recommendations,
+        ];
+    }
 }

@@ -95,26 +95,26 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @foreach($recentCalls as $call)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['caller_number'] ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-black">{{ isset($call['timestamp']) ? \Carbon\Carbon::parse($call['timestamp'])->format('M d, Y H:i') : 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['duration'] ?? 0 }}s</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->caller_number ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->call_datetime ? $call->call_datetime->format('M d, Y H:i') : 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->duration ?? 0 }}s</td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if(isset($call['score']))
+                                    @if($call->qaLog && $call->qaLog->total_score !== null)
                                         <span class="px-2 py-1 rounded text-xs font-medium 
-                                            @if($call['score'] >= 80) bg-green-100 text-green-800
-                                            @elseif($call['score'] >= 60) bg-yellow-100 text-yellow-800
-                                            @elseif($call['score'] >= 40) bg-blue-100 text-blue-800
+                                            @if($call->qaLog->total_score >= 80) bg-green-100 text-green-800
+                                            @elseif($call->qaLog->total_score >= 60) bg-yellow-100 text-yellow-800
+                                            @elseif($call->qaLog->total_score >= 40) bg-blue-100 text-blue-800
                                             @else bg-red-100 text-red-800
                                             @endif">
-                                            {{ $call['score'] }}
+                                            {{ $call->qaLog->total_score }}
                                         </span>
                                     @else
                                         <span class="text-gray-400">Not scored</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-sm text-black">{{ $call['disposition'] ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-black">{{ $call->qaLog?->disposition ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
-                                    <a href="{{ route('calls.show', $call['ctm_call_id'] ?? $call['id']) }}" class="text-navy-900 hover:text-navy-700 font-medium">
+                                    <a href="{{ route('calls.show', $call->ctm_call_id) }}" class="text-navy-900 hover:text-navy-700 font-medium">
                                         View
                                     </a>
                                 </td>

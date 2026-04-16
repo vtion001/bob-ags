@@ -31,11 +31,24 @@ npx playwright test
 - `app/Services/CTMService.php` — CTM API client (pagination, agent lookups)
 - `app/Http/Controllers/CallController.php` — search, sync, transcribe, analyze
 - `app/Services/OpenAIService.php` — Whisper transcription + QA scoring (both via OpenAI `gpt-4o-mini`)
-- `app/Services/QAAnalysisService.php` — QA orchestration (uses OpenAIService)
-- `app/Jobs/TranscribeCallJob.php` — Background transcription job
+- `app/Services/QAAnalysisService.php` — QA orchestration (uses OpenAIService), includes `generateCoachingInsights()` for AI-powered supervisor coaching
+- `app/Jobs/TranscribeCallJob.php` — Background transcription job (CTM auth download + Whisper)
 - `app/Http/Controllers/RecordingController.php` — Recording audio proxy
+- `app/Models/QaLog.php` — QA log model (includes `coaching_insights` + `recommendations` fields)
 - `resources/views/calls/index.blade.php` — Call search results + CTM pagination UI
-- `resources/views/calls/show.blade.php` — Call detail + transcribe/QA buttons
+- `resources/views/calls/show.blade.php` — Call detail + transcribe/QA buttons + score breakdown + coaching insights
+
+## QA Score Breakdown Fix (2026-04-17)
+- `QAAnalysisService::calculateBreakdown()` returns nested structure: `['opening' => ['score' => N, 'max' => N], ...]`
+- View condition `is_array($data) && isset($data['score']) && isset($data['max'])` now passes correctly
+- **Migration:** `2026_04_17_000001_add_coaching_fields_to_qa_logs_table.php` adds `coaching_insights` + `recommendations` TEXT columns
+
+## AI Coaching Insights (2026-04-17)
+- `QAAnalysisService::generateCoachingInsights(array $analysis, string $transcript)` — AI-powered via OpenAI
+- Prompt: supervisor voice, structured output with `COACHING_INSIGHTS:` + `RECOMMENDATIONS:` sections
+- Returns null on AI failure — gracefully degrades, analysis still stores score/criteria
+- Called from `CallController::analyze()` after `analyzeTranscript()`, results stored in `QaLog`
+- View: Coaching Insights (blue-50) + Recommended Training Focus (amber-50) sections below rubric table
 
 ## Architecture
 - Laravel 12 + Vue 3 + Vite + Tailwind CSS

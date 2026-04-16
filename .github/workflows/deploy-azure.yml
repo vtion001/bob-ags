@@ -1,0 +1,247 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+  PHP_VERSION: '8.2'
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pgsql, pdo_pgsql
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build Vite frontend
+        run: npm run build
+
+      - name: Execute tests
+        run: php artisan test
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pgsql, pdo_pgsql
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Create Web.App Settings
+        run: |
+          cat >> .env << 'EOF'
+          APP_ENV=production
+          APP_DEBUG=false
+          APP_KEY=${{ secrets.APP_KEY }}
+          LOG_CHANNEL=stack
+          LOG_LEVEL=info
+
+          DB_CONNECTION=pgsql
+          DB_HOST=${{ secrets.AZURE_POSTGRES_HOST }}
+          DB_PORT=${{ secrets.AZURE_POSTGRES_PORT }}
+          DB_DATABASE=${{ secrets.AZURE_POSTGRES_DATABASE }}
+          DB_USERNAME=${{ secrets.AZURE_POSTGRES_USERNAME }}
+          DB_PASSWORD=${{ secrets.AZURE_POSTGRES_PASSWORD }}
+
+          REDIS_CLIENT=predis
+          REDIS_HOST=${{ secrets.AZURE_REDIS_HOST }}
+          REDIS_PASSWORD=${{ secrets.AZURE_REDIS_PASSWORD }}
+          REDIS_PORT=${{ secrets.AZURE_REDIS_PORT }}
+          REDIS_TLS=true
+
+          SESSION_DRIVER=redis
+          CACHE_STORE=redis
+          QUEUE_CONNECTION=redis
+          EOF
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build Vite frontend
+        run: npm run build
+
+      - name: Zip artifact for deployment
+        run: |
+          cd bootstrap && zip -r ../deploy.zip . && cd ..
+          zip -r deploy.zip artisan app config database public resources routes storage vendor composer.json composer.lock package.json vite.config.js .env -x "node_modules/*" -x ".git/*"
+        shell: bash
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          package: deploy.zip
+
+      - name: Create startup command
+        run: |
+          cat > startup.txt << 'EOF'
+          cd /home/site/wwwroot && composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan config:clear && php artisan cache:clear && php artisan route:clear && php artisan view:clear
+          php artisan serve --host=0.0.0.0 --port=%HTTP_PLATFORM_PORT%
+          EOF
+          cat startup.txt
+
+      - name: Upload startup script
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          app-settings: |
+            [
+              {
+                "name": "WEBSITES_WEBPACK_IGNORE_NODE_MODULES",
+                "value": "0",
+                "slotSetting": false
+              },
+              {
+                "name": "APP_KEY",
+                "value": "${{ secrets.APP_KEY }}",
+                "slotSetting": false
+              },
+              {
+                "name": "APP_ENV",
+                "value": "production",
+                "slotSetting": false
+              },
+              {
+                "name": "APP_DEBUG",
+                "value": "false",
+                "slotSetting": false
+              },
+              {
+                "name": "LOG_CHANNEL",
+                "value": "stack",
+                "slotSetting": false
+              },
+              {
+                "name": "LOG_LEVEL",
+                "value": "info",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_CONNECTION",
+                "value": "pgsql",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_HOST",
+                "value": "${{ secrets.AZURE_POSTGRES_HOST }}",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_PORT",
+                "value": "${{ secrets.AZURE_POSTGRES_PORT }}",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_DATABASE",
+                "value": "${{ secrets.AZURE_POSTGRES_DATABASE }}",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_USERNAME",
+                "value": "${{ secrets.AZURE_POSTGRES_USERNAME }}",
+                "slotSetting": false
+              },
+              {
+                "name": "DB_PASSWORD",
+                "value": "${{ secrets.AZURE_POSTGRES_PASSWORD }}",
+                "slotSetting": false
+              },
+              {
+                "name": "REDIS_CLIENT",
+                "value": "predis",
+                "slotSetting": false
+              },
+              {
+                "name": "REDIS_HOST",
+                "value": "${{ secrets.AZURE_REDIS_HOST }}",
+                "slotSetting": false
+              },
+              {
+                "name": "REDIS_PASSWORD",
+                "value": "${{ secrets.AZURE_REDIS_PASSWORD }}",
+                "slotSetting": false
+              },
+              {
+                "name": "REDIS_PORT",
+                "value": "${{ secrets.AZURE_REDIS_PORT }}",
+                "slotSetting": false
+              },
+              {
+                "name": "REDIS_TLS",
+                "value": "true",
+                "slotSetting": false
+              },
+              {
+                "name": "SESSION_DRIVER",
+                "value": "redis",
+                "slotSetting": false
+              },
+              {
+                "name": "CACHE_STORE",
+                "value": "redis",
+                "slotSetting": false
+              },
+              {
+                "name": "QUEUE_CONNECTION",
+                "value": "redis",
+                "slotSetting": false
+              }
+            ]
