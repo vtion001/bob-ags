@@ -121,7 +121,7 @@ class QAAnalysisService
         return $results;
     }
 
-    protected function analyzeWithAI(string $transcriptText): array
+    protected function analyzeWithAI(string $transcriptText)
     {
         return $this->openRouter->analyzeCall($transcriptText, $this->criteria);
     }
@@ -171,16 +171,11 @@ class QAAnalysisService
     protected function calculateBreakdown(array $results): array
     {
         $breakdown = [
-            'opening_score' => 0,
-            'opening_max' => 0,
-            'probing_score' => 0,
-            'probing_max' => 0,
-            'qualification_score' => 0,
-            'qualification_max' => 0,
-            'closing_score' => 0,
-            'closing_max' => 0,
-            'compliance_score' => 0,
-            'compliance_max' => 0,
+            'opening' => ['score' => 0, 'max' => 0],
+            'probing' => ['score' => 0, 'max' => 0],
+            'qualification' => ['score' => 0, 'max' => 0],
+            'closing' => ['score' => 0, 'max' => 0],
+            'compliance' => ['score' => 0, 'max' => 0],
         ];
 
         foreach ($results['rubric_results'] as $id => $result) {
@@ -191,37 +186,11 @@ class QAAnalysisService
             $category = $result['category'];
             $points = $result['points'];
 
-            switch ($category) {
-                case 'opening':
-                    $breakdown['opening_max'] += $points;
-                    if ($result['pass']) {
-                        $breakdown['opening_score'] += $points;
-                    }
-                    break;
-                case 'probing':
-                    $breakdown['probing_max'] += $points;
-                    if ($result['pass']) {
-                        $breakdown['probing_score'] += $points;
-                    }
-                    break;
-                case 'qualification':
-                    $breakdown['qualification_max'] += $points;
-                    if ($result['pass']) {
-                        $breakdown['qualification_score'] += $points;
-                    }
-                    break;
-                case 'closing':
-                    $breakdown['closing_max'] += $points;
-                    if ($result['pass']) {
-                        $breakdown['closing_score'] += $points;
-                    }
-                    break;
-                case 'compliance':
-                    $breakdown['compliance_max'] += $points;
-                    if ($result['pass']) {
-                        $breakdown['compliance_score'] += $points;
-                    }
-                    break;
+            if (isset($breakdown[$category])) {
+                $breakdown[$category]['max'] += $points;
+                if ($result['pass']) {
+                    $breakdown[$category]['score'] += $points;
+                }
             }
         }
 

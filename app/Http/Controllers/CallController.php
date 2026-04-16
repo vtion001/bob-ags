@@ -524,6 +524,7 @@ class CallController extends Controller
             return redirect()->route('calls.show', $ctmCallId)->with('success', 'Analysis completed. Score: '.$analysis['score'].'/100');
         } catch (\Exception $e) {
             Log::error('Analysis error', ['call_id' => $ctmCallId, 'error' => $e->getMessage()]);
+            $call->update(['status' => 'pending']);
 
             return redirect()->back()->with('error', 'Analysis failed: '.$e->getMessage());
         }
