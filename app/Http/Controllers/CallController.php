@@ -12,6 +12,7 @@ use App\Services\CTMService;
 use App\Services\QAAnalysisService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -35,6 +36,8 @@ class CallController extends Controller
 
     public function index(Request $request)
     {
+        set_time_limit(60);
+
         $query = Call::query()->with('qaLog');
 
         if ($request->filled('search')) {
@@ -97,6 +100,8 @@ class CallController extends Controller
 
     public function searchCTM(Request $request)
     {
+        set_time_limit(120);
+
         try {
             $dateFrom = $request->input('date_from', now()->subMonths(6)->toDateString());
             $dateTo = $request->input('date_to', now()->toDateString());
@@ -116,17 +121,18 @@ class CallController extends Controller
             $startDate = Carbon::parse($dateFrom)->startOfDay();
             $endDate = Carbon::parse($dateTo)->endOfDay();
 
-            $ctmCalls = $this->ctm->getCalls([
+            $ctmCalls = $this->ctm->getAllCalls([
                 'limit' => $limit,
                 'start_date' => $startDate->toIso8601String(),
                 'end_date' => $endDate->toIso8601String(),
-            ]);
+            ], 500);
 
             if (! $ctmCalls || ! isset($ctmCalls['calls'])) {
                 return redirect()->back()->with('error', 'No calls received from CTM');
             }
 
             $calls = collect($ctmCalls['calls']);
+            $totalEntries = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
 
             if (! empty($search)) {
                 $searchNormalized = preg_replace('/[^0-9]/', '', $search);
@@ -155,15 +161,9 @@ class CallController extends Controller
 
             if (! empty($userGroupIds)) {
                 $userIds = $this->ctm->getUserGroupUserIds($userGroupIds);
-                Log::debug('User group filter applied', [
-                    'group_ids' => $userGroupIds,
-                    'user_ids' => $userIds,
-                    'total_calls' => $calls->count(),
-                ]);
                 $calls = $calls->filter(fn ($call) => in_array($call['agent_id'] ?? null, $userIds));
             }
 
-            $totalEntries = $ctmCalls['total_entries'] ?? count($ctmCalls['calls']);
             $filteredCount = $calls->count();
 
             $localQuery = Call::query()->with('qaLog');
@@ -201,8 +201,21 @@ class CallController extends Controller
             $agents = Agent::with('user')->get();
             $userGroups = $this->ctm->getUserGroupsFromAPI();
 
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = 100;
+            $total = $calls->count();
+            $paginatedCalls = $calls->slice(($page - 1) * $perPage, $perPage)->values();
+
+            $paginator = new LengthAwarePaginator(
+                $paginatedCalls,
+                $total,
+                $perPage,
+                $page,
+                ['path' => url()->current()]
+            );
+
             return view('calls.index', [
-                'calls' => $calls->take(20),
+                'calls' => $paginator,
                 'localCalls' => $localCalls,
                 'totalEntries' => $totalEntries,
                 'filteredCount' => $filteredCount,

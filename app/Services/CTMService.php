@@ -74,6 +74,7 @@ class CTMService
 
             $response = Http::withHeaders($this->getHeaders())
                 ->withoutVerifying()
+                ->timeout(120)
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls.json", array_merge($defaultParams, $params));
 
             if ($response->successful()) {
@@ -91,6 +92,62 @@ class CTMService
 
             return null;
         }
+    }
+
+    public function getAllCalls(array $params = [], int $maxPages = 100): ?array
+    {
+        $allCalls = [];
+        $nextPage = null;
+        $totalEntries = 0;
+        $pageCount = 0;
+
+        do {
+            $requestParams = $params;
+            if ($nextPage) {
+                $parsed = parse_url($nextPage);
+                parse_str($parsed['query'] ?? '', $queryParams);
+                $requestParams['after'] = $queryParams['after'] ?? null;
+            }
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
+                ->timeout(120)
+                ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/calls.json", $requestParams);
+
+            if (! $response->successful()) {
+                Log::error('CTM getAllCalls error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                break;
+            }
+
+            $data = $response->json();
+            $calls = $data['calls'] ?? [];
+            $allCalls = array_merge($allCalls, $calls);
+            $totalEntries = $data['total_entries'] ?? count($allCalls);
+            $nextPage = $data['next_page'] ?? null;
+            $pageCount++;
+
+            Log::debug('CTM getAllCalls page', [
+                'page' => $pageCount,
+                'calls_this_page' => count($calls),
+                'total_so_far' => count($allCalls),
+                'total_entries' => $totalEntries,
+                'has_next' => ! empty($nextPage),
+            ]);
+
+            if ($pageCount >= $maxPages) {
+                Log::warning('CTM getAllCalls hit max pages limit', ['max_pages' => $maxPages]);
+                break;
+            }
+        } while ($nextPage);
+
+        return [
+            'calls' => $allCalls,
+            'total_entries' => $totalEntries,
+            'pages_fetched' => $pageCount,
+        ];
     }
 
     public function getCallsByDateRange(string $startDate, string $endDate, int $limit = 100): ?array
@@ -183,6 +240,7 @@ class CTMService
         try {
             $response = Http::withHeaders($this->getHeaders())
                 ->withoutVerifying()
+                ->timeout(120)
                 ->get("https://{$this->host}/api/v1/accounts/{$this->accountId}/user_groups");
 
             if ($response->successful()) {

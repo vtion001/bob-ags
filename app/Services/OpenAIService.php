@@ -41,6 +41,7 @@ class OpenAIService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.$this->apiKey,
             ])
+                ->withoutVerifying()
                 ->timeout(120)
                 ->attach(
                     'file',

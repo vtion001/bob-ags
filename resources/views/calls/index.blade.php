@@ -126,12 +126,17 @@
         </div>
 
         @if(isset($searchFrom) && $searchFrom === 'ctm')
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start justify-between gap-4">
             <p class="text-sm text-blue-800">
-                <strong>CTM Search Results:</strong> Showing {{ $filteredCount ?? $calls->count() }} of {{ $totalEntries ?? 0 }} total calls
+                <strong>CTM Search Results:</strong>
+                Showing {{ $calls->firstItem() ?? 1 }}–{{ $calls->lastItem() ?? 0 }} of {{ $filteredCount ?? 0 }} filtered calls
+                ({{ $totalEntries ?? 0 }} total calls in date range)
                 @if(isset($dateFrom) && isset($dateTo))
-                    from {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} to {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}
+                    &nbsp;|&nbsp; {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} – {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}
                 @endif
+            </p>
+            <p class="text-sm text-blue-800 whitespace-nowrap">
+                Page {{ $calls->currentPage() }} of {{ $calls->lastPage() }}
             </p>
         </div>
         @endif
@@ -226,11 +231,44 @@
                 </div>
 
                 <!-- Pagination -->
-                @if(!isset($searchFrom) || $searchFrom !== 'ctm')
-                <div class="px-4 py-3 bg-gray-50">
-                    {{ $calls->links() }}
+                <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                    @if(!isset($searchFrom) || $searchFrom !== 'ctm')
+                        {{ $calls->links() }}
+                    @else
+                        @php
+                            $params = request()->except('page');
+                            $currentPage = $calls->currentPage();
+                            $lastPage = $calls->lastPage();
+                            $baseUrl = url()->current() . '?' . http_build_query(array_merge($params, ['page' => '']));
+                        @endphp
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">
+                                {{ $calls->firstItem() ?? 0 }}–{{ $calls->lastItem() ?? 0 }} of {{ $filteredCount ?? 0 }}
+                            </span>
+                            <div class="flex gap-2">
+                                @if($currentPage > 1)
+                                    <a href="{{ $baseUrl }}{{ $currentPage - 1 }}"
+                                       class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700">
+                                        ← Previous
+                                    </a>
+                                @endif
+                                @for($i = max(1, $currentPage - 2); $i <= min($lastPage, $currentPage + 2); $i++)
+                                    <a href="{{ $baseUrl }}{{ $i }}"
+                                       class="px-3 py-1 text-sm border rounded-md text-gray-700
+                                              {{ $i === $currentPage ? 'bg-navy-900 text-white border-navy-900' : 'bg-white hover:bg-gray-50 border-gray-300' }}">
+                                        {{ $i }}
+                                    </a>
+                                @endfor
+                                @if($currentPage < $lastPage)
+                                    <a href="{{ $baseUrl }}{{ $currentPage + 1 }}"
+                                       class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700">
+                                        Next →
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                 </div>
-                @endif
             @endif
         </div>
     </div>
