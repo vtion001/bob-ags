@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-04-17T00:00:00.000Z",
+  "trigger": "manual test run",
+  "session_id": null,
+  "tests_passed": false,
+  "test_command": "php artisan test",
+  "iterations": 1,
+  "total_test_count": 25,
+  "passed_count": 1,
+  "failed_count": 24,
+  "fixes_applied": [],
+  "test_output_snippet": "SQLSTATE[HY000]: General error: 1 table \"sessions\" already exists (Connection: sqlite, Database: :memory:, SQL: create table \"sessions\"...))",
+  "summary": "23 Feature tests failed due to pre-existing SQLite :memory: sessions table conflict (Laravel Breeze framework-level issue); 1 Unit test passed; no application code issues identified."
+}

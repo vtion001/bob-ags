@@ -145,6 +145,26 @@
                     </header>
                 @endisset
 
+                <!-- Flash Messages -->
+                @if(session('success'))
+                    <div class="mx-8 mt-6 p-4 bg-green-100 border border-green-400 text-green-800 rounded-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="mx-8 mt-6 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        {{ session('error') }}
+                    </div>
+                @endif
+                @if(session('info'))
+                    <div class="mx-8 mt-6 p-4 bg-blue-100 border border-blue-400 text-blue-800 rounded-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        {{ session('info') }}
+                    </div>
+                @endif
+
                 <!-- Page Content -->
                 <div class="p-8">
                     @yield('content')

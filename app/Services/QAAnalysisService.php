@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Log;
 
 class QAAnalysisService
 {
-    protected OpenRouterService $openRouter;
+    protected OpenAIService $openRouter;
 
     protected array $rubric;
 
@@ -16,7 +16,7 @@ class QAAnalysisService
 
     protected array $alwaysNaCriteria;
 
-    public function __construct(OpenRouterService $openRouter)
+    public function __construct(OpenAIService $openRouter)
     {
         $this->openRouter = $openRouter;
         $this->rubric = config('qarubric');

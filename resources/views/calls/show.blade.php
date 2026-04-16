@@ -116,13 +116,23 @@
                 <!-- Transcript -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-bold text-black mb-4">Transcript</h2>
-                    @if(!empty($call->transcript_text))
-                        <div class="prose max-w-none text-black">
-                            {!! nl2br(e($call->transcript_text)) !!}
-                        </div>
-                    @else
-                        <p class="text-gray-500">No transcript available.</p>
-                    @endif
+                    <div id="transcript-container">
+                        @if(!empty($call->transcript_text))
+                            <div id="transcript-text" class="prose max-w-none text-black">
+                                {!! nl2br(e($call->transcript_text)) !!}
+                            </div>
+                        @elseif($isTranscribing)
+                            <div id="transcript-loading" class="flex flex-col items-center justify-center py-8">
+                                <svg class="animate-spin h-8 w-8 text-navy-900 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p class="text-gray-500 text-sm">Transcribing recording...</p>
+                            </div>
+                        @else
+                            <p class="text-gray-500">No transcript available.</p>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -203,7 +213,7 @@
                     @if($call->transcript_text || $call->recording_url)
                     <form method="POST" action="{{ route('calls.analyze', $call->ctm_call_id ?? $call->id) }}">
                         @csrf
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium">
+                        <button type="submit" class="w-full bg-navy-900 hover:bg-navy-800 text-white px-4 py-3 rounded-lg font-medium">
                             Run QA Analysis
                         </button>
                     </form>
@@ -294,4 +304,32 @@
         @endif
     </div>
 </div>
+
+@if($isTranscribing)
+@push('scripts')
+<script>
+(function() {
+    const ctmCallId = "{{ $call->ctm_call_id }}";
+    const container = document.getElementById('transcript-container');
+
+    function poll() {
+        fetch(`/calls/${ctmCallId}/transcript-status`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'complete') {
+                    container.innerHTML = '<div class="prose max-w-none text-black">' + data.transcript.replace(/\n/g, '<br>') + '</div>';
+                } else if (data.status === 'failed') {
+                    container.innerHTML = '<p class="text-red-500">Transcription failed: ' + (data.message || 'Unknown error') + '</p>';
+                } else {
+                    setTimeout(poll, 3000);
+                }
+            })
+            .catch(() => setTimeout(poll, 5000));
+    }
+
+    poll();
+})();
+</script>
+@endpush
+@endif
 @endsection

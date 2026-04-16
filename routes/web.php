@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{ctmCallId}/recording/download', [RecordingController::class, 'download'])->name('recording-download');
         Route::post('/{ctmCallId}/analyze', [CallController::class, 'analyze'])->name('analyze');
         Route::post('/{ctmCallId}/transcribe', [CallController::class, 'transcribe'])->name('transcribe');
+        Route::get('/{ctmCallId}/transcript-status', [CallController::class, 'transcriptStatus'])->name('transcript-status');
     });
 
     Route::prefix('qa')->name('qa.')->group(function () {

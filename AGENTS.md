@@ -1,3 +1,52 @@
+# BOB-AGS — Call Tracking & QA Analysis
+
+## Watch & Validate
+**Test command:**
+```bash
+php artisan test
+```
+**E2E command:**
+```bash
+npx playwright test
+```
+**Report:** `test-results/`
+**Skills:** systematic-debugging, verification-before-completion, test-master
+
+## Key Commands
+- **Dev:** `npm run dev` (starts Vite + Laravel server + queue listener concurrently)
+- **Tests:** `php artisan test` (runs PHPUnit Feature + Unit suites)
+- **E2E:** `npx playwright test`
+- **Lint:** `./vendor/bin/pint`
+- **Queue:** `php artisan queue:listen --tries=1 --timeout=0`
+- **Migrate:** `php artisan migrate`
+- **DB:** SQLite (`:memory:`) for tests/dev; PostgreSQL for prod
+
+## Testing
+- Uses SQLite in-memory (`:memory:`) for PHPUnit — no real DB needed
+- **Known pre-existing failure:** Feature tests fail with SQLite `:memory:` sessions (sessions table conflict across test requests). This is a framework-level issue with the default Breeze auth tests, not application code.
+- External services mocked where possible (CTM API, OpenAI, Anthropic)
+- `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, `QUEUE_CONNECTION=sync`
+
+## Key Files
+- `app/Services/CTMService.php` — CTM API client (pagination, agent lookups)
+- `app/Http/Controllers/CallController.php` — search, sync, transcribe, analyze
+- `app/Services/OpenAIService.php` — Whisper transcription + QA scoring (both via OpenAI `gpt-4o-mini`)
+- `app/Services/QAAnalysisService.php` — QA orchestration (uses OpenAIService)
+- `app/Jobs/TranscribeCallJob.php` — Background transcription job
+- `app/Http/Controllers/RecordingController.php` — Recording audio proxy
+- `resources/views/calls/index.blade.php` — Call search results + CTM pagination UI
+- `resources/views/calls/show.blade.php` — Call detail + transcribe/QA buttons
+
+## Architecture
+- Laravel 12 + Vue 3 + Vite + Tailwind CSS
+- CTM API: cursor-paginated (10 calls/page). Use `getAllCalls()` for full result sets; `getCalls()` only returns the first page (10 calls max).
+- OpenAI: both Whisper transcription and QA analysis use `OPENAI_API_KEY` from `.env` (via `OpenAIService`)
+- Recording audio routed through `RecordingController`
+- CTM filtered calls: upsert-on-view pattern for unsynced calls in `CallController::show()`
+- Agent ID format: CTM returns raw numeric IDs; `getAgentById()` converts to hashed format; call records store hashed IDs
+
+---
+
 # Testing Automation — watch-and-validate
 
 A generic, framework-agnostic test-fix-validate automation system. Watches your project files for changes and triggers opencode to autonomously run tests, fix failures, and produce a structured report.
@@ -14,7 +63,7 @@ npm install
 ### 2. Run once (manual / cron)
 
 ```bash
-nodt watch-and-validate.js --once --project /path/to/my-project
+node watch-and-validate.js --once --project /path/to/my-project
 ```
 
 ### 3. Run as daemon (file watcher)
@@ -118,13 +167,13 @@ node watch-and-validate.js -p ./app-a -p ./app-b -p ./app-c
 git push origin main && cd ~/testing-automation && node scripts/watch-and-validate.js --once --project /path/to/project
 
 # With custom opencode model
-node watch-and-validate.js --once --project ./my-project -- --model anthropic/claude-3
+node scripts/watch-and-validate.js --once --project ./my-project -- --model anthropic/claude-3
 
 # With custom agent
-node watch-and-validate.js --once --project ./my-project -- --agent worker
+node scripts/watch-and-validate.js --once --project ./my-project -- --agent worker
 
 # Watch multiple sub-projects in a monorepo
-node watch-and-validate.js --project ./packages/core --project ./packages/web --project ./packages/api
+node scripts/watch-and-validate.js --project ./packages/core --project ./packages/web --project ./packages/api
 ```
 
 ---

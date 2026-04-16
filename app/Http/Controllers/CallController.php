@@ -11,6 +11,7 @@ use App\Services\AssemblyAIService;
 use App\Services\CTMService;
 use App\Services\QAAnalysisService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -359,7 +360,22 @@ class CallController extends Controller
             }
         }
 
-        return view('calls.show', compact('call'));
+        // Auto-dispatch Whisper transcription if recording exists but no transcript
+        $isTranscribing = false;
+        if (empty($call->transcript_text) && ! empty($call->recording_url)) {
+            if (! in_array($call->status, ['transcribing', 'transcribed'])) {
+                $call->update(['status' => 'transcribing']);
+            }
+            TranscribeCallJob::dispatch($call->id, $call->recording_url);
+            $isTranscribing = true;
+
+            Log::info('Auto-transcription dispatched', [
+                'call_id' => $call->id,
+                'ctm_call_id' => $ctmCallId,
+            ]);
+        }
+
+        return view('calls.show', compact('call', 'isTranscribing'));
     }
 
     public function sync(Request $request)
@@ -535,6 +551,7 @@ class CallController extends Controller
             }
 
             // Dispatch transcription job to queue
+            $call->update(['status' => 'transcribing']);
             TranscribeCallJob::dispatch($call->id, $call->recording_url);
 
             Log::info('TranscribeCallJob dispatched', [
@@ -549,5 +566,33 @@ class CallController extends Controller
 
             return redirect()->back()->with('error', 'Transcription failed: '.$e->getMessage());
         }
+    }
+
+    public function transcriptStatus(string $ctmCallId): JsonResponse
+    {
+        $call = Call::where('ctm_call_id', $ctmCallId)->first();
+
+        if (! $call) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        if (! empty($call->transcript_text)) {
+            return response()->json([
+                'status' => 'complete',
+                'transcript' => $call->transcript_text,
+            ]);
+        }
+
+        if ($call->status === 'transcription_failed') {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Transcription failed. Please try again.',
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'transcribing',
+            'message' => 'Transcription in progress...',
+        ]);
     }
 }
