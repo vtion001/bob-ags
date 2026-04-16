@@ -46,8 +46,8 @@ class OpenAIService
                 ->attach(
                     'file',
                     file_get_contents($audioUrl),
-                    'audio.mp3',
-                    ['Content-Type' => 'audio/mpeg']
+                    'audio.wav',
+                    ['Content-Type' => 'audio/wav']
                 )
                 ->post($this->baseUrl.'/audio/transcriptions', [
                     'model' => 'whisper-1',

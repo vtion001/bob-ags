@@ -98,7 +98,7 @@
                         Your browser does not support the audio element.
                     </audio>
                     <div class="flex gap-2">
-                        @if(!$call->transcript_text)
+                        @if(!$call->transcript_text && $call->recording_url)
                         <form method="POST" action="{{ route('calls.transcribe', $call->ctm_call_id ?? $call->id) }}" class="flex-1">
                             @csrf
                             <button type="submit" class="w-full bg-navy-900 hover:bg-navy-800 text-white px-4 py-3 rounded-lg font-medium">
@@ -200,7 +200,7 @@
 
                 <!-- Run Analysis Button -->
                 @if(!$call->qaLog || $call->qaLog->total_score === null)
-                    @if($call->transcript_text)
+                    @if($call->transcript_text || $call->recording_url)
                     <form method="POST" action="{{ route('calls.analyze', $call->ctm_call_id ?? $call->id) }}">
                         @csrf
                         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium">

@@ -100,7 +100,7 @@ class CallController extends Controller
 
     public function searchCTM(Request $request)
     {
-        set_time_limit(120);
+        set_time_limit(300);
 
         try {
             $dateFrom = $request->input('date_from', now()->subMonths(6)->toDateString());
@@ -112,6 +112,7 @@ class CallController extends Controller
             $scoreMin = $request->filled('score_min') ? (int) $request->input('score_min') : null;
             $disposition = $request->input('disposition', '');
             $limit = min((int) $request->input('limit', 500), 1000);
+            $maxPages = (int) ceil($limit / 10);
 
             $userGroupIds = $request->input('user_groups', []);
             if (is_string($userGroupIds)) {
@@ -122,10 +123,10 @@ class CallController extends Controller
             $endDate = Carbon::parse($dateTo)->endOfDay();
 
             $ctmCalls = $this->ctm->getAllCalls([
-                'limit' => $limit,
+                'limit' => 100,
                 'start_date' => $startDate->toIso8601String(),
                 'end_date' => $endDate->toIso8601String(),
-            ], 500);
+            ], $maxPages);
 
             if (! $ctmCalls || ! isset($ctmCalls['calls'])) {
                 return redirect()->back()->with('error', 'No calls received from CTM');
@@ -236,17 +237,58 @@ class CallController extends Controller
     public function show(string $ctmCallId)
     {
         $call = Call::with(['qaLog', 'user'])->where('ctm_call_id', $ctmCallId)->first();
+        $ctmData = null;
 
         if (! $call) {
-            return redirect()->route('calls.index')->with('error', 'Call not found');
+            $ctmData = $this->ctm->getCall($ctmCallId);
+
+            if (! $ctmData) {
+                return redirect()->route('calls.index')->with('error', 'Call not found');
+            }
+
+            $agentId = $ctmData['agent_id'] ?? ($ctmData['agent']['id'] ?? null);
+            $agentName = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
+
+            if (! $agentName && $agentId) {
+                $agent = $this->ctm->getAgentById($agentId);
+                $agentName = $agent['ctm_agent_name'] ?? null;
+            }
+
+            $call = Call::create([
+                'ctm_call_id' => $ctmData['id'] ?? $ctmCallId,
+                'ctm_sid' => $ctmData['sid'] ?? null,
+                'tracking_number' => $ctmData['phone'] ?? null,
+                'caller_number' => $ctmData['caller_number'] ?? null,
+                'direction' => in_array($ctmData['direction'] ?? '', ['inbound', 'outbound']) ? $ctmData['direction'] : 'inbound',
+                'duration' => $ctmData['duration'] ?? 0,
+                'talk_time' => $ctmData['talk_time'] ?? null,
+                'call_datetime' => isset($ctmData['called_at'])
+                    ? Carbon::parse($ctmData['called_at'])
+                    : (isset($ctmData['timestamp']) ? Carbon::parse($ctmData['timestamp']) : null),
+                'agent_id' => $agentId,
+                'agent_name' => $agentName,
+                'source' => $ctmData['source'] ?? null,
+                'tracking_label' => $ctmData['tracking_label'] ?? null,
+                'recording_url' => $ctmData['recording_url']
+                    ?? $ctmData['recording']
+                    ?? $ctmData['recording_path']
+                    ?? $ctmData['audio']
+                    ?? null,
+                'caller_city' => $ctmData['city'] ?? null,
+                'caller_state' => $ctmData['state'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            $call->load(['qaLog', 'user']);
         }
 
-        // Always fetch fresh CTM data
-        $ctmData = $this->ctm->getCall($ctmCallId);
+        if (! $ctmData) {
+            $ctmData = $this->ctm->getCall($ctmCallId);
+        }
+
         if ($ctmData) {
             $updates = [];
 
-            // Update call datetime if missing or if CTM has newer data
             $rawDate = $ctmData['called_at'] ?? $ctmData['timestamp'] ?? null;
             if ($rawDate) {
                 $parsedDate = Carbon::parse($rawDate);
@@ -255,7 +297,6 @@ class CallController extends Controller
                 }
             }
 
-            // Update agent name if missing
             if (! $call->agent_name) {
                 $agentName = $ctmData['agent_name'] ?? ($ctmData['agent']['name'] ?? null);
                 if (! $agentName && $call->agent_id) {
@@ -267,40 +308,36 @@ class CallController extends Controller
                 }
             }
 
-            // Update sid (session ID) - used for recording URLs
             $sid = $ctmData['sid'] ?? null;
             if ($sid && empty($call->ctm_sid)) {
                 $updates['ctm_sid'] = $sid;
             }
 
-            // Update talk_time from CTM
             $talkTime = $ctmData['talk_time'] ?? null;
             if ($talkTime && empty($call->talk_time)) {
                 $updates['talk_time'] = $talkTime;
             }
 
-            // Update recording URL - check multiple field names from getCall response
-            // Priority: recording_url > recording > recording_path > audio
             $recordingUrl = $ctmData['recording_url']
                 ?? $ctmData['recording']
                 ?? $ctmData['recording_path']
-                ?? $ctmData['audio']  // CTM native recording URL
+                ?? $ctmData['audio']
                 ?? null;
 
             if ($recordingUrl && empty($call->recording_url)) {
                 $updates['recording_url'] = $recordingUrl;
-                $sourceField = isset($ctmData['recording_url']) ? 'recording_url'
-                    : (isset($ctmData['recording']) ? 'recording'
-                    : (isset($ctmData['recording_path']) ? 'recording_path' : 'audio'));
-                Log::info('CTM Recording URL found in getCall', [
-                    'call_id' => $ctmCallId,
-                    'recording_url' => substr($recordingUrl, 0, 100),
-                    'source_field' => $sourceField,
-                ]);
             }
 
             if (! empty($updates)) {
                 $call->update($updates);
+                $call->refresh();
+            }
+        }
+
+        if (empty($call->recording_url)) {
+            $recordingData = $this->ctm->getCallRecording($ctmCallId);
+            if ($recordingData && ! empty($recordingData['url'])) {
+                $call->update(['recording_url' => $recordingData['url']]);
                 $call->refresh();
             }
         }
@@ -335,11 +372,12 @@ class CallController extends Controller
             $startDate = Carbon::parse($dateFrom)->startOfDay();
             $endDate = Carbon::parse($dateTo)->endOfDay();
 
-            $ctmCalls = $this->ctm->getCalls([
-                'limit' => $limit,
+            $maxPages = (int) ceil($limit / 10);
+            $ctmCalls = $this->ctm->getAllCalls([
+                'limit' => 10,
                 'start_date' => $startDate->toIso8601String(),
                 'end_date' => $endDate->toIso8601String(),
-            ]);
+            ], $maxPages);
 
             if (! $ctmCalls || ! isset($ctmCalls['calls'])) {
                 return redirect()->back()->with('error', 'No calls received from CTM');
@@ -427,6 +465,12 @@ class CallController extends Controller
 
             $call->update(['status' => 'analyzing']);
 
+            if ($call->status === 'transcription_failed') {
+                $call->update(['status' => 'pending']);
+
+                return redirect()->back()->with('error', 'This call had a failed transcription. Please transcribe the recording first.');
+            }
+
             if (empty($call->transcript_text)) {
                 $transcriptData = $this->ctm->getCallTranscript($ctmCallId);
 
@@ -484,6 +528,10 @@ class CallController extends Controller
 
             if (! empty($call->transcript_text)) {
                 return redirect()->back()->with('info', 'Call already has a transcript');
+            }
+
+            if ($call->status === 'transcription_failed') {
+                $call->update(['status' => 'pending']);
             }
 
             // Dispatch transcription job to queue
