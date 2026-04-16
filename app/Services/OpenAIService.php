@@ -170,6 +170,56 @@ class OpenAIService
         }
     }
 
+    public function transcribeFromContent(string $content, string $filename = 'audio.wav'): ?array
+    {
+        if (empty($this->apiKey)) {
+            Log::warning('OpenAI API key not configured');
+
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+            ])
+                ->withoutVerifying()
+                ->timeout(120)
+                ->attach(
+                    'file',
+                    $content,
+                    $filename,
+                    ['Content-Type' => 'audio/wav']
+                )
+                ->post($this->baseUrl.'/audio/transcriptions', [
+                    'model' => 'whisper-1',
+                    'response_format' => 'verbose_json',
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                return [
+                    'id' => uniqid('whisper_'),
+                    'text' => $data['text'] ?? '',
+                    'words' => $data['words'] ?? null,
+                    'language' => $data['language'] ?? null,
+                    'duration' => $data['duration'] ?? null,
+                ];
+            }
+
+            Log::error('OpenAI Whisper transcription error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('OpenAI Whisper transcription exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function summarize(string $text, ?string $model = null): ?string
     {
         $result = $this->chat([
