@@ -55,11 +55,11 @@
                                 <td class="px-4 py-3 text-sm font-mono text-black">{{ substr($call['ctm_call_id'] ?? '', 0, 12) }}...</td>
                                 <td class="px-4 py-3 text-sm text-black">{{ isset($call['timestamp']) ? \Carbon\Carbon::parse($call['timestamp'])->format('M d, Y') : 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if(isset($call['score']))
+                                    @if($call['score'] !== null)
                                         <span class="px-2 py-1 rounded text-xs font-medium 
-                                            @if($call['score'] >= 80) bg-green-100 text-green-800
-                                            @elseif($call['score'] >= 60) bg-yellow-100 text-yellow-800
-                                            @elseif($call['score'] >= 40) bg-blue-100 text-blue-800
+                                            @if($call['score'] >= 85) bg-green-100 text-green-800
+                                            @elseif($call['score'] >= 70) bg-blue-100 text-blue-800
+                                            @elseif($call['score'] >= 50) bg-yellow-100 text-yellow-800
                                             @else bg-red-100 text-red-800
                                             @endif">
                                             {{ $call['score'] }}
@@ -69,7 +69,7 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if(isset($call['sentiment']))
+                                    @if($call['sentiment'])
                                         <span class="px-2 py-1 rounded text-xs font-medium 
                                             @if($call['sentiment'] === 'positive') bg-green-100 text-green-800
                                             @elseif($call['sentiment'] === 'neutral') bg-yellow-100 text-yellow-800
@@ -82,19 +82,7 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-black max-w-xs truncate">{{ $call['disposition'] ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm">
-                                    <div class="flex flex-wrap gap-1">
-                                        @if(!empty($call['tags']))
-                                            @foreach(array_slice($call['tags'], 0, 3) as $tag)
-                                                <span class="px-2 py-0.5 bg-navy-100 text-navy-800 rounded text-xs">
-                                                    {{ $tag }}
-                                                </span>
-                                            @endforeach
-                                        @else
-                                            <span class="text-gray-400">—</span>
-                                        @endif
-                                    </div>
-                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-400">—</td>
                                 <td class="px-4 py-3 text-sm">
                                     <a href="{{ route('calls.show', $call['ctm_call_id']) }}" 
                                         class="text-navy-900 hover:text-navy-700 font-medium">
@@ -106,6 +94,14 @@
                         </tbody>
                     </table>
                 </div>
+                @if($qaLogs->hasPages())
+                <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                    <p class="text-sm text-gray-500">
+                        Showing {{ $qaLogs->firstItem() ?? 0 }}–{{ $qaLogs->lastItem() ?? 0 }} of {{ $qaLogs->total() }} results
+                    </p>
+                    {{ $qaLogs->links() }}
+                </div>
+                @endif
             @endif
         </div>
     </div>

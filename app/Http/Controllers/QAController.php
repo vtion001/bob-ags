@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\QaLog;
 use App\Models\Call;
+use App\Models\QaLog;
 use Illuminate\Http\Request;
 
 class QAController extends Controller
@@ -12,15 +12,15 @@ class QAController extends Controller
     {
         $query = QaLog::with(['call', 'analyst']);
 
-        if ($request->has('date_from') && !empty($request->date_from)) {
+        if ($request->has('date_from') && ! empty($request->date_from)) {
             $query->where('created_at', '>=', $request->date_from);
         }
 
-        if ($request->has('date_to') && !empty($request->date_to)) {
+        if ($request->has('date_to') && ! empty($request->date_to)) {
             $query->where('created_at', '<=', $request->date_to);
         }
 
-        if ($request->has('sentiment') && !empty($request->sentiment)) {
+        if ($request->has('sentiment') && ! empty($request->sentiment)) {
             $query->where('sentiment', $request->sentiment);
         }
 
@@ -28,11 +28,25 @@ class QAController extends Controller
             $query->where('ztp_failed', true);
         }
 
-        if ($request->has('disposition') && !empty($request->disposition)) {
+        if ($request->has('disposition') && ! empty($request->disposition)) {
             $query->where('disposition', $request->disposition);
         }
 
         $qaLogs = $query->orderBy('created_at', 'desc')->paginate(25);
+
+        $calls = $query
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn ($qa) => [
+                'ctm_call_id' => $qa->call?->ctm_call_id,
+                'timestamp' => $qa->call?->call_datetime,
+                'score' => $qa->total_score,
+                'sentiment' => $qa->sentiment,
+                'disposition' => $qa->disposition,
+                'tags' => $qa->notes,
+                'isQA' => true,
+                '_qa' => $qa,
+            ]);
 
         $stats = QaLog::selectRaw('
             COUNT(*) as total,
@@ -55,14 +69,19 @@ class QAController extends Controller
             ->pluck('count', 'disposition')
             ->toArray();
 
-        return view('qa.logs', compact('qaLogs', 'stats', 'scoreDistribution', 'dispositionCounts'));
+        return view('qa.logs', [
+            'qaLogs' => $qaLogs,
+            'calls' => $calls,
+            'scoreDistribution' => $scoreDistribution,
+            'dispositionCounts' => $dispositionCounts,
+        ]);
     }
 
     public function show(string $callId)
     {
         $call = Call::with(['qaLog', 'qaLog.analyst'])->findOrFail($callId);
 
-        if (!$call->qaLog) {
+        if (! $call->qaLog) {
             return redirect()->route('qa.logs')->with('error', 'No QA analysis found for this call');
         }
 

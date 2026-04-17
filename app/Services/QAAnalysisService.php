@@ -214,17 +214,17 @@ class QAAnalysisService
         $totalMax = 0;
 
         $breakdown = $results['rubric_breakdown'];
-        $totalEarned = $breakdown['opening_score']
-            + $breakdown['probing_score']
-            + $breakdown['qualification_score']
-            + $breakdown['closing_score']
-            + $breakdown['compliance_score'];
+        $totalEarned = $breakdown['opening']['score']
+            + $breakdown['probing']['score']
+            + $breakdown['qualification']['score']
+            + $breakdown['closing']['score']
+            + $breakdown['compliance']['score'];
 
-        $totalMax = $breakdown['opening_max']
-            + $breakdown['probing_max']
-            + $breakdown['qualification_max']
-            + $breakdown['closing_max']
-            + $breakdown['compliance_max'];
+        $totalMax = $breakdown['opening']['max']
+            + $breakdown['probing']['max']
+            + $breakdown['qualification']['max']
+            + $breakdown['closing']['max']
+            + $breakdown['compliance']['max'];
 
         if ($totalMax > 0) {
             $results['score'] = round(($totalEarned / $totalMax) * 100);

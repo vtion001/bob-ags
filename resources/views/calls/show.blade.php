@@ -350,4 +350,32 @@
 </script>
 @endpush
 @endif
+
+{{-- Full-page loading overlay for QA analysis --}}
+<div id="analysis-loading-overlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        <div class="flex justify-center mb-4">
+            <svg class="animate-spin h-10 w-10 text-navy-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold text-black mb-2">Analyzing Call Quality</h3>
+        <p class="text-gray-600 text-sm mb-4">This may take 15–30 seconds depending on transcript length.</p>
+        <p class="text-gray-400 text-xs">Please do not close or refresh this tab.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    document.querySelectorAll('form[action*="/analyze"]').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            const overlay = document.getElementById('analysis-loading-overlay');
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+            if (overlay) overlay.classList.remove('hidden');
+        });
+    });
+})();
+</script>
 @endsection

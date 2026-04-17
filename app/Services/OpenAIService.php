@@ -89,6 +89,7 @@ class OpenAIService
 
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->timeout(60)
                 ->post($this->baseUrl.'/chat/completions', [
                     'model' => $model ?? $this->defaultModel,
@@ -124,6 +125,7 @@ class OpenAIService
             $fullContent = '';
 
             $response = Http::withHeaders($this->getHeaders())
+                ->withoutVerifying()
                 ->timeout(60)
                 ->post($this->baseUrl.'/chat/completions', [
                     'model' => $model ?? $this->defaultModel,
